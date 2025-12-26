@@ -156,6 +156,7 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
     data: null,
     error: null,
   });
+  const [lastRequestTime, setLastRequestTime] = useState<number>(0);
 
   const { addWidget, updateWidget } = useDashboardStore();
   const { toast } = useToast();
@@ -242,6 +243,18 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
       return;
     }
 
+    // Client-side rate limiting - prevent requests within 2 seconds of each other
+    const now = Date.now();
+    if (now - lastRequestTime < 2000) {
+      setTestApiState({ 
+        loading: false, 
+        data: null, 
+        error: "Please wait at least 2 seconds between requests to avoid rate limiting." 
+      });
+      return;
+    }
+    setLastRequestTime(now);
+
     const isValid = await form.trigger(["title", "type", "apiUrl", "refreshInterval"]);
     if (!isValid) return;
 
@@ -264,7 +277,13 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
       setStep(2);
     } catch (e: any) {
       console.error('API test error:', e);
-      const errorMessage = e.message || 'Failed to fetch data. Please check the URL and try again.';
+      let errorMessage = e.message || 'Failed to fetch data. Please check the URL and try again.';
+      
+      // Handle specific rate limiting errors
+      if (errorMessage.includes('rate limit') || errorMessage.includes('Rate limit')) {
+        errorMessage = errorMessage + ' Try using cached data or wait before testing again.';
+      }
+      
       setTestApiState({ loading: false, data: null, error: errorMessage });
     }
   };

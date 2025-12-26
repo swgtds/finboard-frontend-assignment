@@ -10,6 +10,12 @@ interface CacheEntry {
 const cache = new Map<string, CacheEntry>();
 const requestQueue = new Map<string, { timestamp: number; count: number }>();
 
+// Enhanced rate limiting for different API providers
+const API_RATE_LIMITS = {
+  'coingecko.com': { maxRequests: 3, windowMs: 60000 }, // 3 requests per minute for CoinGecko
+  'default': { maxRequests: 10, windowMs: 60000 } // 10 requests per minute for other APIs
+};
+
 // Clean expired cache entries periodically
 setInterval(() => {
   const now = Date.now();
@@ -18,11 +24,28 @@ setInterval(() => {
       cache.delete(key);
     }
   }
+  
+  // Also clean old rate limit entries
+  for (const [key, entry] of requestQueue.entries()) {
+    if (now - entry.timestamp > 120000) { // Clean entries older than 2 minutes
+      requestQueue.delete(key);
+    }
+  }
 }, 60000); // Clean every minute
 
-// Rate limiting: max 5 requests per URL per 60 seconds
+// Enhanced rate limiting with API-specific limits
 function isRateLimited(url: string): boolean {
   const now = Date.now();
+  
+  // Determine rate limit based on API provider
+  let rateLimit = API_RATE_LIMITS.default;
+  for (const [domain, limit] of Object.entries(API_RATE_LIMITS)) {
+    if (domain !== 'default' && url.includes(domain)) {
+      rateLimit = limit;
+      break;
+    }
+  }
+  
   const entry = requestQueue.get(url);
 
   if (!entry) {
@@ -30,14 +53,14 @@ function isRateLimited(url: string): boolean {
     return false;
   }
 
-  // If more than 60 seconds have passed, reset the counter
-  if (now - entry.timestamp > 60000) {
+  // If more than the window time has passed, reset the counter
+  if (now - entry.timestamp > rateLimit.windowMs) {
     requestQueue.set(url, { timestamp: now, count: 1 });
     return false;
   }
 
-  // If we've made more than 5 requests in the last 60 seconds, rate limit
-  if (entry.count >= 5) {
+  // If we've made more requests than allowed in the time window, rate limit
+  if (entry.count >= rateLimit.maxRequests) {
     return true;
   }
 
@@ -82,19 +105,31 @@ export async function GET(request: NextRequest) {
   if (!skipCache) {
     const cached = cache.get(url);
     if (cached) {
+      const isCoingecko = url.includes('coingecko.com');
+      const maxAge = isCoingecko ? 300 : 60; // 5 minutes for CoinGecko, 1 minute for others
+      
       return NextResponse.json(cached.data, {
         headers: {
           'X-Cache': 'HIT',
-          'Cache-Control': 'public, max-age=60',
+          'Cache-Control': `public, max-age=${maxAge}`,
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
         },
       });
     }
   }
 
-  // Check rate limiting
+  // Check rate limiting with specific error message
   if (isRateLimited(url)) {
+    const isCoingecko = url.includes('coingecko.com');
+    const waitTime = isCoingecko ? '1 minute' : '60 seconds';
+    const message = isCoingecko 
+      ? `CoinGecko API rate limit exceeded. Please wait ${waitTime} before making another request. The free tier allows only 3 requests per minute.`
+      : `Rate limit exceeded. Please wait ${waitTime} before making another request.`;
+      
     return NextResponse.json(
-      { error: 'Rate limit exceeded. Please wait before making another request.' },
+      { error: message },
       { status: 429 }
     );
   }
@@ -148,17 +183,21 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
 
-    // Cache successful responses for 60 seconds
+    // Enhanced caching with longer TTL for certain APIs
+    const isCoingecko = url.includes('coingecko.com');
+    const cacheTTL = isCoingecko ? 300000 : 60000; // 5 minutes for CoinGecko, 1 minute for others
+
+    // Cache successful responses
     cache.set(url, {
       data,
       timestamp: Date.now(),
-      ttl: 60000, // 60 seconds
+      ttl: cacheTTL,
     });
 
     return NextResponse.json(data, {
       headers: {
         'X-Cache': 'MISS',
-        'Cache-Control': 'public, max-age=60',
+        'Cache-Control': `public, max-age=${cacheTTL / 1000}`,
         // Add CORS headers to allow frontend access
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
