@@ -14,6 +14,7 @@ type DashboardActions = {
   updateWidget: (widgetId: string, updatedConfig: Partial<WidgetConfig>) => void;
   removeWidget: (widgetId: string) => void;
   setWidgets: (widgets: WidgetConfig[]) => void;
+  reorderWidgets: (activeId: string, overId: string) => void;
 };
 
 const initialState: DashboardState = {
@@ -45,6 +46,16 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
       setWidgets: (widgets) =>
         set((state) => {
           state.widgets = widgets;
+        }),
+      reorderWidgets: (activeId, overId) =>
+        set((state) => {
+          const oldIndex = state.widgets.findIndex((widget) => widget.id === activeId);
+          const newIndex = state.widgets.findIndex((widget) => widget.id === overId);
+          
+          if (oldIndex !== -1 && newIndex !== -1) {
+            const [reorderedWidget] = state.widgets.splice(oldIndex, 1);
+            state.widgets.splice(newIndex, 0, reorderedWidget);
+          }
         }),
     })),
     {

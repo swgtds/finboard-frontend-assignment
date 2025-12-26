@@ -2,13 +2,53 @@
 
 import { useDashboardStore } from "@/store/dashboardStore";
 import { Widget } from "./Widget";
+import { SortableWidget } from "./SortableWidget";
 import type { WidgetConfig } from "@/lib/types";
 import { Button } from "./ui/button";
 import { WidgetBuilderModal } from "./WidgetBuilderModal";
-
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { useState } from 'react';
 
 export function Dashboard() {
-  const { widgets } = useDashboardStore();
+  const { widgets, reorderWidgets } = useDashboardStore();
+  const [activeWidget, setActiveWidget] = useState<WidgetConfig | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const widget = widgets.find((w) => w.id === active.id);
+    setActiveWidget(widget || null);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      reorderWidgets(active.id as string, over.id as string);
+    }
+    
+    setActiveWidget(null);
+  };
   
   if (widgets.length === 0) {
     return (
@@ -25,10 +65,27 @@ export function Dashboard() {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {widgets.map((widget) => (
-        <Widget key={widget.id} widget={widget} />
-      ))}
-    </div>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext items={widgets.map(w => w.id)} strategy={rectSortingStrategy}>
+        <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {widgets.map((widget) => (
+            <SortableWidget key={widget.id} widget={widget} />
+          ))}
+        </div>
+      </SortableContext>
+      
+      <DragOverlay>
+        {activeWidget && (
+          <div className="opacity-50 rotate-2 transform scale-105">
+            <Widget widget={activeWidget} />
+          </div>
+        )}
+      </DragOverlay>
+    </DndContext>
   );
 }
