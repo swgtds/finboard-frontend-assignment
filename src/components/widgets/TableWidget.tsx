@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
+import { Search } from "lucide-react";
 
 type TableWidgetProps = {
   data: any[];
@@ -50,61 +51,76 @@ export function TableWidget({ data, config }: TableWidgetProps) {
   
   return (
     <div className="flex flex-col h-full">
-      <Input
-        placeholder="Search table..."
-        value={searchTerm}
-        onChange={(e) => {
-          setSearchTerm(e.target.value);
-          setCurrentPage(1);
-        }}
-        className="mb-4"
-      />
+      <div className="px-4 pb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search table data..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="pl-9 bg-muted/50 border-muted-foreground/20 focus:border-primary/50 focus:bg-background transition-colors"
+          />
+        </div>
+      </div>
       <div className="flex-grow relative">
         <ScrollArea className="absolute inset-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {config.columns.map((col, index) => (
-                  <TableHead key={index}>{col.header}</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedData.map((row, rowIndex) => (
-                <TableRow key={rowIndex}>
-                  {config.columns.map((col, colIndex) => (
-                    <TableCell key={colIndex}>{get(row, col.dataPath)}</TableCell>
+          <div className="px-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {config.columns.map((col, index) => (
+                    <TableHead key={index} className="font-semibold text-foreground">{col.header}</TableHead>
                   ))}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {paginatedData.map((row, rowIndex) => (
+                  <TableRow key={rowIndex} className="hover:bg-muted/50 transition-colors">
+                    {config.columns.map((col, colIndex) => (
+                      <TableCell key={colIndex} className="text-sm">{get(row, col.dataPath)}</TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </div>
 
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-          disabled={currentPage === 1}
-        >
-          Previous
-        </Button>
+      <div className="flex items-center justify-between px-4 py-3 border-t border-muted-foreground/10">
         <span className="text-sm text-muted-foreground">
-          Page {currentPage} of {totalPages}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+          {filteredData.length === 0 
+            ? "No results found" 
+            : `Showing ${Math.min((currentPage - 1) * ROWS_PER_PAGE + 1, filteredData.length)} to ${Math.min(currentPage * ROWS_PER_PAGE, filteredData.length)} of ${filteredData.length} entries`
           }
-          disabled={currentPage === totalPages}
-        >
-          Next
-        </Button>
+        </span>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground font-medium">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+            }
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
+        </div>
       </div>
     </div>
   );

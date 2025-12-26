@@ -44,10 +44,8 @@ export function Widget({ widget }: WidgetProps) {
     }
     setError(null);
     try {
-      // Use the proxy API to avoid CORS issues
       let proxyUrl = `/api/proxy?url=${encodeURIComponent(widget.apiUrl)}`;
       
-      // For manual refresh on non-cached APIs, add cache-busting parameter
       if (isManualRefresh && !shouldCacheApi(widget.apiUrl)) {
         proxyUrl += '&skipCache=true';
       }
@@ -60,10 +58,16 @@ export function Widget({ widget }: WidgetProps) {
       if (!response.ok) {
         let errorMessage;
         try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
-        } catch (jsonError) {
-          console.error('Failed to parse error response as JSON:', jsonError);
+          const responseText = await response.text();
+          try {
+            const errorData = JSON.parse(responseText);
+            errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+          } catch (jsonParseError) {
+            console.error('Response was not JSON:', responseText.substring(0, 200));
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+        } catch (textError) {
+          console.error('Failed to read response text:', textError);
           errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         }
         throw new Error(errorMessage);
@@ -71,7 +75,9 @@ export function Widget({ widget }: WidgetProps) {
       
       let jsonData;
       try {
-        jsonData = await response.json();
+        const responseText = await response.text();
+        console.log('Response text received for widget:', widget.id, responseText.substring(0, 100));
+        jsonData = JSON.parse(responseText);
         console.log('Successfully parsed JSON data for widget:', widget.id);
       } catch (jsonError) {
         console.error('Failed to parse response as JSON:', jsonError);
@@ -119,20 +125,15 @@ export function Widget({ widget }: WidgetProps) {
     try {
       let widgetData;
       
-      // Handle data transformation for table display
       if (widget.dataPath?.startsWith('__wrap_')) {
-        // Handle object wrapping for table widgets
         if (widget.dataPath === '__wrap_object__') {
-          // Wrap root object in array
           widgetData = Array.isArray(data) ? data : [data];
         } else {
-          // Wrap object at specific path in array
           const pathToWrap = widget.dataPath.replace('__wrap_', '');
           const objectToWrap = get(data, pathToWrap, null);
           widgetData = objectToWrap ? (Array.isArray(objectToWrap) ? objectToWrap : [objectToWrap]) : [];
         }
       } else {
-        // Normal path extraction
         widgetData = widget.dataPath ? get(data, widget.dataPath, data) : data;
       }
 
@@ -161,24 +162,19 @@ export function Widget({ widget }: WidgetProps) {
     }
   };
 
-  // Get appropriate height class based on widget type
   const getWidgetHeightClass = () => {
     switch (widget.type) {
       case 'card':
-        // Card widgets with flexible height to accommodate long values
         return 'h-auto min-h-[140px] sm:min-h-[160px] lg:min-h-[180px] max-h-fit';
       case 'table':
-        // Table widgets need more height for rows
         return 'h-auto min-h-[400px]';
       case 'chart':
-        // Chart widgets need medium height for visualization
         return 'h-auto min-h-[300px]';
       default:
         return 'h-auto min-h-[200px]';
     }
   };
 
-  // Get card styling based on widget type
   const getCardStyling = () => {
     switch (widget.type) {
       case 'card':

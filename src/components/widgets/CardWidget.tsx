@@ -11,7 +11,7 @@ type CardWidgetProps = {
 
 export function CardWidget({ data, config }: CardWidgetProps) {
   const itemCount = config.items.length;
-  // Better responsive grid layout
+
   const gridCols = itemCount === 1 
     ? 'grid-cols-1' 
     : itemCount === 2 
@@ -29,7 +29,7 @@ export function CardWidget({ data, config }: CardWidgetProps) {
         return (
           <div key={index} className="flex flex-col space-y-1 min-w-0">
             <div className="flex items-center">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide break-words line-clamp-2 leading-tight">
                 {item.label}
               </p>
             </div>

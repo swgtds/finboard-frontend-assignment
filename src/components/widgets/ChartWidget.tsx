@@ -40,10 +40,48 @@ export function ChartWidget({ data: rawData, config }: ChartWidgetProps) {
 
   const formattedData: FormattedDataPoint[] = useMemo(() => {
     if (!Array.isArray(rawData)) return [];
+    
+    if (rawData.length > 0 && Array.isArray(rawData[0])) {
+      return rawData.map((item, index) => {
+        if (Array.isArray(item) && item.length >= 2) {
+          let category: string;
+          let value: number;
+          
+          if (config.categoryKey && config.valueKey) {
+            const categoryIndex = parseInt(config.categoryKey.replace(/[\[\]]/g, ''));
+            const valueIndex = parseInt(config.valueKey.replace(/[\[\]]/g, ''));
+            
+            const categoryValue = item[categoryIndex];
+            const valueValue = item[valueIndex];
+            
+            if (typeof categoryValue === 'number' && categoryValue > 1000000000) {
+              category = new Date(categoryValue).toLocaleDateString();
+            } else {
+              category = String(categoryValue);
+            }
+            
+            value = Number(valueValue) || 0;
+          } else {
+            const timestamp = item[0];
+            value = Number(item[1]) || 0;
+            
+            if (typeof timestamp === 'number' && timestamp > 1000000000) {
+              category = new Date(timestamp).toLocaleDateString();
+            } else {
+              category = String(timestamp);
+            }
+          }
+          
+          return { category, value };
+        }
+        return { category: `Point ${index + 1}`, value: 0 };
+      }).slice(0, 15);
+    }
+    
     return rawData.map((item) => ({
       category: item[config.categoryKey]?.toString() || "N/A",
       value: Number(item[config.valueKey]) || 0,
-    })).slice(0, 15); // Limit data points for readability
+    })).slice(0, 15);
   }, [rawData, config.categoryKey, config.valueKey]);
 
   const chartColors = useMemo(() => {

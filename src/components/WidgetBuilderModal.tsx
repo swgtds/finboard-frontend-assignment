@@ -118,7 +118,17 @@ const getObjectKeys = (obj: any, prefix = "", isRootArray = false): string[] => 
 // Get base field names from array data (without indices)
 const getBaseFieldNames = (obj: any): string[] => {
     if (!Array.isArray(obj) || obj.length === 0) return [];
-    return getObjectKeys(obj[0], "");
+    
+    const firstItem = obj[0];
+    
+    // Handle arrays of arrays (like [[timestamp, value], [timestamp, value]])
+    if (Array.isArray(firstItem)) {
+        // For arrays of arrays, create synthetic field names based on array indices
+        return firstItem.map((_, index) => `[${index}]`);
+    }
+    
+    // Handle regular object arrays
+    return getObjectKeys(firstItem, "");
 };
 
 // Get all indexed paths for a specific field across all array items
@@ -346,6 +356,27 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
         if (autoSelectedPath) {
           console.log('Auto-selecting data path:', autoSelectedPath);
           form.setValue('dataPath', autoSelectedPath === '__root__' ? '' : autoSelectedPath);
+          
+          // For chart widgets, also auto-select categoryKey and valueKey if data is array of arrays
+          if (widgetType === 'chart') {
+            let dataToCheck = data;
+            if (autoSelectedPath !== '__root__' && !autoSelectedPath.startsWith('__wrap_')) {
+              dataToCheck = get(data, autoSelectedPath);
+            }
+            
+            // Check if this is an array of arrays (like [[timestamp, value]])
+            if (Array.isArray(dataToCheck) && dataToCheck.length > 0 && Array.isArray(dataToCheck[0])) {
+              // Auto-select [0] for category (X-axis, typically timestamp) and [1] for value (Y-axis)
+              form.setValue('categoryKey', '[0]');
+              form.setValue('valueKey', '[1]');
+              
+              console.log('Auto-selected chart keys: categoryKey=[0], valueKey=[1]');
+              toast({ 
+                title: 'Chart Configuration Auto-Selected', 
+                description: 'Detected time-series data format. X-axis set to timestamps, Y-axis set to values.',
+              });
+            }
+          }
           
           // Show a toast notification about auto-selection
           toast({ 
