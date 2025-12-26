@@ -21,6 +21,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { WidgetBuilderModal } from "./WidgetBuilderModal";
 import { cn } from "@/lib/utils";
+import { shouldCacheApi } from "@/config/apiRateLimits";
 
 type WidgetProps = {
   widget: WidgetConfig;
@@ -46,8 +47,8 @@ export function Widget({ widget }: WidgetProps) {
       // Use the proxy API to avoid CORS issues
       let proxyUrl = `/api/proxy?url=${encodeURIComponent(widget.apiUrl)}`;
       
-      // For manual refresh on non-CoinGecko APIs, add cache-busting parameter
-      if (isManualRefresh && !widget.apiUrl.includes('coingecko.com')) {
+      // For manual refresh on non-cached APIs, add cache-busting parameter
+      if (isManualRefresh && !shouldCacheApi(widget.apiUrl)) {
         proxyUrl += '&skipCache=true';
       }
       

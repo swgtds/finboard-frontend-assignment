@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getRateLimitConfig, shouldCacheApi, getCacheDuration } from '@/config/apiRateLimits';
 
 // In-memory cache for API responses
 interface CacheEntry {
@@ -9,12 +10,6 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 const requestQueue = new Map<string, { timestamp: number; count: number }>();
-
-// Enhanced rate limiting for different API providers
-const API_RATE_LIMITS = {
-  'coingecko.com': { maxRequests: 3, windowMs: 60000 }, // 3 requests per minute for CoinGecko only
-  'default': { maxRequests: 30, windowMs: 60000 } // 30 requests per minute for other APIs (much more lenient)
-};
 
 // Clean expired cache entries periodically
 setInterval(() => {
@@ -33,16 +28,16 @@ setInterval(() => {
   }
 }, 60000); // Clean every minute
 
-// Enhanced rate limiting with API-specific limits (only strict for CoinGecko)
+// Enhanced rate limiting based on configuration
 function isRateLimited(url: string): boolean {
-  // Only apply strict rate limiting to CoinGecko
-  if (!url.includes('coingecko.com')) {
-    return false; // No rate limiting for non-CoinGecko APIs
+  const config = getRateLimitConfig(url);
+  
+  // If no rate limit config found, allow unlimited requests
+  if (!config) {
+    return false;
   }
   
   const now = Date.now();
-  const rateLimit = API_RATE_LIMITS['coingecko.com'];
-  
   const entry = requestQueue.get(url);
 
   if (!entry) {
@@ -51,13 +46,13 @@ function isRateLimited(url: string): boolean {
   }
 
   // If more than the window time has passed, reset the counter
-  if (now - entry.timestamp > rateLimit.windowMs) {
+  if (now - entry.timestamp > config.windowMs) {
     requestQueue.set(url, { timestamp: now, count: 1 });
     return false;
   }
 
   // If we've made more requests than allowed in the time window, rate limit
-  if (entry.count >= rateLimit.maxRequests) {
+  if (entry.count >= config.maxRequests) {
     return true;
   }
 
@@ -98,14 +93,15 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Check cache first (only for CoinGecko, unless skipCache is true)
-  if (!skipCache && url.includes('coingecko.com')) {
+  // Check cache first (only for configured APIs, unless skipCache is true)
+  if (!skipCache && shouldCacheApi(url)) {
     const cached = cache.get(url);
     if (cached) {
+      const cacheDuration = getCacheDuration(url) / 1000; // Convert to seconds
       return NextResponse.json(cached.data, {
         headers: {
           'X-Cache': 'HIT',
-          'Cache-Control': 'public, max-age=300',
+          'Cache-Control': `public, max-age=${cacheDuration}`,
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type',
@@ -114,10 +110,15 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Check rate limiting with specific error message (only for CoinGecko)
+  // Check rate limiting based on configuration
   if (isRateLimited(url)) {
+    const config = getRateLimitConfig(url);
+    const errorMessage = config 
+      ? `${config.description}. Please wait before making another request.`
+      : 'Rate limit exceeded. Please wait before making another request.';
+      
     return NextResponse.json(
-      { error: 'CoinGecko API rate limit exceeded. Please wait 1 minute before making another request. The free tier allows only 3 requests per minute.' },
+      { error: errorMessage },
       { status: 429 }
     );
   }
@@ -171,10 +172,10 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
 
-    // Only cache CoinGecko responses to reduce API calls
-    const isCoingecko = url.includes('coingecko.com');
-    if (isCoingecko) {
-      const cacheTTL = 300000; // 5 minutes for CoinGecko
+    // Only cache responses for configured APIs
+    const shouldCache = shouldCacheApi(url);
+    if (shouldCache) {
+      const cacheTTL = getCacheDuration(url);
       cache.set(url, {
         data,
         timestamp: Date.now(),
@@ -182,10 +183,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const cacheSeconds = shouldCache ? getCacheDuration(url) / 1000 : 0;
+    
     return NextResponse.json(data, {
       headers: {
-        'X-Cache': isCoingecko ? 'MISS' : 'NO-CACHE',
-        'Cache-Control': isCoingecko ? 'public, max-age=300' : 'no-cache',
+        'X-Cache': shouldCache ? 'MISS' : 'NO-CACHE',
+        'Cache-Control': shouldCache ? `public, max-age=${cacheSeconds}` : 'no-cache',
         // Add CORS headers to allow frontend access
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, OPTIONS',

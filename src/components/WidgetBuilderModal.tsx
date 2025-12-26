@@ -40,6 +40,7 @@ import { Checkbox } from "./ui/checkbox";
 import { ScrollArea } from "./ui/scroll-area";
 import { get, set } from "lodash";
 import { Trash2 } from "lucide-react";
+import { getRateLimitConfig } from "@/config/apiRateLimits";
 
 const baseSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -179,7 +180,7 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
     data: null,
     error: null,
   });
-  const [lastCoinGeckoRequest, setLastCoinGeckoRequest] = useState<number>(0);
+  const [lastRateLimitedRequest, setLastRateLimitedRequest] = useState<Map<string, number>>(new Map());
 
   const { addWidget, updateWidget } = useDashboardStore();
   const { toast } = useToast();
@@ -278,20 +279,23 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
       return;
     }
 
-    // Client-side rate limiting - only for CoinGecko API
+    // Client-side rate limiting - for any configured API
     const now = Date.now();
-    if (apiUrl.includes('coingecko.com') && now - lastCoinGeckoRequest < 2000) {
-      setTestApiState({ 
-        loading: false, 
-        data: null, 
-        error: "Please wait at least 2 seconds between CoinGecko requests to avoid rate limiting." 
-      });
-      return;
-    }
+    const rateLimitConfig = getRateLimitConfig(apiUrl);
     
-    // Only update the timestamp for CoinGecko requests
-    if (apiUrl.includes('coingecko.com')) {
-      setLastCoinGeckoRequest(now);
+    if (rateLimitConfig) {
+      const lastRequest = lastRateLimitedRequest.get(rateLimitConfig.domain) || 0;
+      if (now - lastRequest < 2000) { // 2 second minimum delay
+        setTestApiState({ 
+          loading: false, 
+          data: null, 
+          error: `Please wait at least 2 seconds between ${rateLimitConfig.domain} requests to avoid rate limiting.` 
+        });
+        return;
+      }
+      
+      // Update the timestamp for this domain
+      setLastRateLimitedRequest(prev => new Map(prev).set(rateLimitConfig.domain, now));
     }
 
     const isValid = await form.trigger(["title", "type", "apiUrl", "refreshInterval"]);
