@@ -208,13 +208,27 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
   
   const selectedDataPath = dataPath === '__root__' ? '' : dataPath;
 
-  const dataForKeys = (widgetType === 'table' || widgetType === 'chart')
-    ? get(testApiState.data, selectedDataPath ?? '')
-    : testApiState.data;
+  // For table and chart widgets, get the data from the selected path
+  // For root arrays, use the array directly
+  let dataForKeys;
+  if (widgetType === 'table' || widgetType === 'chart') {
+    // If no dataPath is set but we have a root-level array, use it directly
+    if ((selectedDataPath === '' || selectedDataPath === undefined || !dataPath) && Array.isArray(testApiState.data)) {
+      dataForKeys = testApiState.data;
+    } else if (selectedDataPath === '' || selectedDataPath === undefined) {
+      // Root level data
+      dataForKeys = testApiState.data;
+    } else {
+      // Nested data
+      dataForKeys = get(testApiState.data, selectedDataPath);
+    }
+  } else {
+    dataForKeys = testApiState.data;
+  }
 
-  // For card widgets with array data at root, show base field names (without indices)
+  // For widgets with array data, show base field names (without indices)
   let apiDataKeys: string[] = [];
-  if (widgetType === 'card' && Array.isArray(dataForKeys)) {
+  if (Array.isArray(dataForKeys)) {
     apiDataKeys = Array.from(new Set(getBaseFieldNames(dataForKeys)));
   } else {
     apiDataKeys = dataForKeys ? Array.from(new Set(getObjectKeys(dataForKeys, ""))) : [];
@@ -234,13 +248,24 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
     setTestApiState({ loading: true, data: null, error: null });
     try {
       const proxyUrl = `/api/proxy?url=${encodeURIComponent(apiUrl)}`;
+      console.log('Testing API:', { apiUrl, proxyUrl });
+      
       const res = await fetch(proxyUrl);
-      if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
+      console.log('Response status:', res.status, res.statusText);
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(errorData.error || `Request failed with status ${res.status}`);
+      }
+      
       const data = await res.json();
+      console.log('API data received:', data);
       setTestApiState({ loading: false, data, error: null });
       setStep(2);
     } catch (e: any) {
-      setTestApiState({ loading: false, data: null, error: e.message });
+      console.error('API test error:', e);
+      const errorMessage = e.message || 'Failed to fetch data. Please check the URL and try again.';
+      setTestApiState({ loading: false, data: null, error: errorMessage });
     }
   };
 
@@ -428,7 +453,23 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
             )}} />
         )}
 
-        {widgetType === "table" && (dataPath || dataPath === '') && (
+        {/* Debug info - remove in production */}
+        {widgetType === "table" && (
+          <div className="p-2 bg-gray-100 text-xs rounded">
+            <div>Debug Info:</div>
+            <div>Widget Type: {widgetType}</div>
+            <div>Has API Data: {testApiState.data ? 'Yes' : 'No'}</div>
+            <div>API Data Type: {testApiState.data ? (Array.isArray(testApiState.data) ? 'Array' : 'Object') : 'None'}</div>
+            <div>API Data Keys: {apiDataKeys.length} ({apiDataKeys.join(', ')})</div>
+            <div>Data Path: "{dataPath}"</div>
+            <div>Selected Data Path: "{selectedDataPath}"</div>
+            <div>Array Paths: [{arrayPaths.join(', ')}]</div>
+            <div>Data for Keys Type: {dataForKeys ? (Array.isArray(dataForKeys) ? `Array[${dataForKeys.length}]` : typeof dataForKeys) : 'undefined'}</div>
+            <div>First Item Keys: {Array.isArray(dataForKeys) && dataForKeys.length > 0 ? Object.keys(dataForKeys[0]).join(', ') : 'N/A'}</div>
+          </div>
+        )}
+
+        {widgetType === "table" && testApiState.data && apiDataKeys.length > 0 && (
             <div className="space-y-4 rounded-md border p-4 mt-4">
                 <h3 className="font-medium">Table Columns</h3>
                  <FormItem>
@@ -495,6 +536,17 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
                       render={() => (<FormItem><FormMessage /></FormItem>)}
                   />
             </div>
+        )}
+
+        {widgetType === "table" && (!testApiState.data || apiDataKeys.length === 0) && (
+          <div className="space-y-4 rounded-md border p-4 mt-4">
+            <h3 className="font-medium">Table Columns</h3>
+            <div className="text-sm text-muted-foreground">
+              {!testApiState.data 
+                ? "Please test the API first to see available columns." 
+                : "No columns available. The API response might be empty or in an unexpected format."}
+            </div>
+          </div>
         )}
         
         {widgetType === "chart" && (dataPath || dataPath === '') && (

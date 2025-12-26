@@ -45,6 +45,17 @@ function isRateLimited(url: string): boolean {
   return false;
 }
 
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const url = searchParams.get('url');
@@ -89,11 +100,27 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    console.log('Fetching URL:', url);
+    
+    // Add specific headers for better compatibility with APIs like CoinGecko
+    const headers: HeadersInit = {
+      'User-Agent': 'Finboard-Dashboard/1.0',
+      'Accept': 'application/json',
+      'Accept-Language': 'en-US,en;q=0.9',
+    };
+
+    // Add referer for certain APIs that check it
+    if (url.includes('coingecko.com')) {
+      headers['Referer'] = 'https://coingecko.com';
+    }
+    
     const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Finboard-Dashboard/1.0',
-      },
+      headers,
+      // Add timeout to prevent hanging requests
+      signal: AbortSignal.timeout(15000), // 15 second timeout for external APIs
     });
+
+    console.log('Response received:', response.status, response.statusText);
 
     if (response.status === 429) {
       return NextResponse.json(
@@ -103,9 +130,19 @@ export async function GET(request: NextRequest) {
     }
 
     if (!response.ok) {
+      console.error(`HTTP error for ${url}:`, response.status, response.statusText);
       return NextResponse.json(
-        { error: `HTTP error! status: ${response.status}` },
+        { error: `HTTP error! status: ${response.status} - ${response.statusText}` },
         { status: response.status }
+      );
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('Non-JSON response received:', contentType);
+      return NextResponse.json(
+        { error: 'API did not return JSON data' },
+        { status: 400 }
       );
     }
 
@@ -122,12 +159,29 @@ export async function GET(request: NextRequest) {
       headers: {
         'X-Cache': 'MISS',
         'Cache-Control': 'public, max-age=60',
+        // Add CORS headers to allow frontend access
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
       },
     });
   } catch (error: any) {
-    console.error('Proxy fetch error:', error);
+    console.error('Proxy fetch error for URL:', url, error);
+    
+    let errorMessage = 'Failed to fetch the resource';
+    
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+      errorMessage = 'Request timed out. Please check if the API is accessible.';
+    } else if (error.message?.includes('fetch')) {
+      errorMessage = 'Network error. Please check the URL and your internet connection.';
+    } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      errorMessage = 'Unable to connect to the API. Please check if the URL is correct and accessible.';
+    } else {
+      errorMessage = error.message || errorMessage;
+    }
+    
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch the resource' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
