@@ -72,7 +72,7 @@ export function Dashboard() {
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={widgets.map(w => w.id)} strategy={rectSortingStrategy}>
-        <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 auto-rows-min grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           {widgets.map((widget) => (
             <SortableWidget key={widget.id} widget={widget} />
           ))}

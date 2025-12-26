@@ -10,18 +10,44 @@ type CardWidgetProps = {
 };
 
 export function CardWidget({ data, config }: CardWidgetProps) {
+  const itemCount = config.items.length;
+  // Better responsive grid layout
+  const gridCols = itemCount === 1 
+    ? 'grid-cols-1' 
+    : itemCount === 2 
+    ? 'grid-cols-1 sm:grid-cols-2' 
+    : itemCount === 3 
+    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
+    : 'grid-cols-2';
+  
   return (
-    <div className="grid gap-4 grid-cols-2 flex-1 items-center">
+    <div className={`grid gap-3 lg:gap-4 ${gridCols} flex-1 p-3 lg:p-4 h-full place-content-start items-start`}>
       {config.items.map((item, index) => {
         const value = get(data, item.valuePath);
+        const formattedValue = typeof value === "number" ? value.toLocaleString() : String(value);
+        
         return (
-          <div key={index} className="flex flex-col overflow-hidden">
-            <p className="text-xs text-muted-foreground truncate">{item.label}</p>
-            <p className="text-2xl font-bold break-words">
-              {item.prefix}
-              {typeof value === "number" ? value.toLocaleString() : String(value)}
-              {item.suffix}
-            </p>
+          <div key={index} className="flex flex-col space-y-1 min-w-0">
+            <div className="flex items-center">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">
+                {item.label}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-baseline gap-1 min-w-0">
+              {item.prefix && (
+                <span className="text-xs lg:text-sm font-medium text-muted-foreground flex-shrink-0">
+                  {item.prefix}
+                </span>
+              )}
+              <p className="text-lg lg:text-xl xl:text-2xl font-bold text-foreground tracking-tight break-all min-w-0 flex-1">
+                {formattedValue}
+              </p>
+              {item.suffix && (
+                <span className="text-xs lg:text-sm font-medium text-muted-foreground flex-shrink-0">
+                  {item.suffix}
+                </span>
+              )}
+            </div>
           </div>
         );
       })}
