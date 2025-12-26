@@ -147,6 +147,29 @@ const getArrayPaths = (data: any, prefix = ''): string[] => {
     return paths;
 };
 
+// Get paths of objects that can be wrapped in arrays for table display
+const getWrappableObjectPaths = (data: any, prefix = ''): string[] => {
+    let paths: string[] = [];
+    if (data === null || typeof data !== 'object') return [];
+
+    // If it's an object (not array), it can be wrapped
+    if (!Array.isArray(data) && Object.keys(data).length > 0) {
+        paths.push(prefix || "__wrap_object__");
+    }
+
+    for (const key in data) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+            const newPath = prefix ? `${prefix}.${key}` : key;
+            if (!Array.isArray(data[key]) && typeof data[key] === 'object' && data[key] !== null) {
+                // This is an object that can be wrapped
+                paths.push(`__wrap_${newPath}`);
+                paths = paths.concat(getWrappableObjectPaths(data[key], newPath));
+            }
+        }
+    }
+    return paths;
+};
+
 
 export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModalProps) {
   const [open, setOpen] = useState(false);
@@ -156,7 +179,7 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
     data: null,
     error: null,
   });
-  const [lastRequestTime, setLastRequestTime] = useState<number>(0);
+  const [lastCoinGeckoRequest, setLastCoinGeckoRequest] = useState<number>(0);
 
   const { addWidget, updateWidget } = useDashboardStore();
   const { toast } = useToast();
@@ -206,6 +229,8 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
   const dataPath = form.watch('dataPath');
   
   const arrayPaths = testApiState.data ? Array.from(new Set(getArrayPaths(testApiState.data))) : [];
+  const wrappableObjectPaths = testApiState.data ? Array.from(new Set(getWrappableObjectPaths(testApiState.data))) : [];
+  const allAvailablePaths = [...arrayPaths, ...wrappableObjectPaths];
   
   const selectedDataPath = dataPath === '__root__' ? '' : dataPath;
 
@@ -213,8 +238,18 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
   // For root arrays, use the array directly
   let dataForKeys;
   if (widgetType === 'table' || widgetType === 'chart') {
-    // If no dataPath is set but we have a root-level array, use it directly
-    if ((selectedDataPath === '' || selectedDataPath === undefined || !dataPath) && Array.isArray(testApiState.data)) {
+    // Handle special transformation cases
+    if (selectedDataPath === '__wrap_object__') {
+      // Wrap single object in array for table display
+      const rootData = testApiState.data;
+      dataForKeys = Array.isArray(rootData) ? rootData : [rootData];
+    } else if (selectedDataPath?.startsWith('__wrap_')) {
+      // Wrap object at specific path in array
+      const pathToWrap = selectedDataPath.replace('__wrap_', '');
+      const objectToWrap = get(testApiState.data, pathToWrap);
+      dataForKeys = Array.isArray(objectToWrap) ? objectToWrap : [objectToWrap];
+    } else if ((selectedDataPath === '' || selectedDataPath === undefined || !dataPath) && Array.isArray(testApiState.data)) {
+      // If no dataPath is set but we have a root-level array, use it directly
       dataForKeys = testApiState.data;
     } else if (selectedDataPath === '' || selectedDataPath === undefined) {
       // Root level data
@@ -243,17 +278,21 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
       return;
     }
 
-    // Client-side rate limiting - prevent requests within 2 seconds of each other
+    // Client-side rate limiting - only for CoinGecko API
     const now = Date.now();
-    if (now - lastRequestTime < 2000) {
+    if (apiUrl.includes('coingecko.com') && now - lastCoinGeckoRequest < 2000) {
       setTestApiState({ 
         loading: false, 
         data: null, 
-        error: "Please wait at least 2 seconds between requests to avoid rate limiting." 
+        error: "Please wait at least 2 seconds between CoinGecko requests to avoid rate limiting." 
       });
       return;
     }
-    setLastRequestTime(now);
+    
+    // Only update the timestamp for CoinGecko requests
+    if (apiUrl.includes('coingecko.com')) {
+      setLastCoinGeckoRequest(now);
+    }
 
     const isValid = await form.trigger(["title", "type", "apiUrl", "refreshInterval"]);
     if (!isValid) return;
@@ -273,6 +312,45 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
       
       const data = await res.json();
       console.log('API data received:', data);
+      
+      // Auto-select the best data path for table and chart widgets
+      if (widgetType === 'table' || widgetType === 'chart') {
+        const detectedArrayPaths = Array.from(new Set(getArrayPaths(data)));
+        const detectedWrappablePaths = Array.from(new Set(getWrappableObjectPaths(data)));
+        
+        let autoSelectedPath = '';
+        
+        if (detectedArrayPaths.length > 0) {
+          // Prefer arrays over objects
+          // If there's a root array, use it; otherwise use the first array found
+          if (detectedArrayPaths.includes('')) {
+            autoSelectedPath = '__root__';
+          } else {
+            // Choose the shortest/most direct array path
+            autoSelectedPath = detectedArrayPaths.sort((a, b) => a.length - b.length)[0];
+          }
+        } else if (detectedWrappablePaths.length > 0) {
+          // If no arrays found, use the first wrappable object
+          // Prefer root object over nested objects
+          if (detectedWrappablePaths.includes('__wrap_object__')) {
+            autoSelectedPath = '__wrap_object__';
+          } else {
+            autoSelectedPath = detectedWrappablePaths[0];
+          }
+        }
+        
+        if (autoSelectedPath) {
+          console.log('Auto-selecting data path:', autoSelectedPath);
+          form.setValue('dataPath', autoSelectedPath === '__root__' ? '' : autoSelectedPath);
+          
+          // Show a toast notification about auto-selection
+          toast({ 
+            title: 'Data Path Auto-Selected', 
+            description: `Automatically selected "${autoSelectedPath === '__root__' ? '(root array)' : autoSelectedPath.replace('__wrap_', '').replace('_object__', ' object')}" as the data source.`,
+          });
+        }
+      }
+      
       setTestApiState({ loading: false, data, error: null });
       setStep(2);
     } catch (e: any) {
@@ -295,6 +373,9 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
     if ((finalValues.type === 'table' || finalValues.type === 'chart') && finalValues.dataPath === '__root__') {
       finalValues.dataPath = '';
     }
+    
+    // Keep the transformation paths as-is - they will be handled by the Widget component
+    // The __wrap_ prefixed paths will be processed during data fetching
 
     if(widgetToEdit) {
         updateWidget(id, finalValues);
@@ -457,16 +538,32 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
                 <FormItem>
                     <FormLabel>Data Array Path</FormLabel>
                      <Select onValueChange={(val) => field.onChange(val === '__root__' ? '' : val)} value={value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select an array from your data" /></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Auto-selected based on API response" /></SelectTrigger></FormControl>
                         <SelectContent>
                         {arrayPaths.map(path => 
                            <SelectItem key={path} value={path === '' ? '__root__' : path}>
                                 {path === "" ? "(root array)" : path}
                            </SelectItem>
                         )}
+                        {wrappableObjectPaths.length > 0 && arrayPaths.length > 0 && (
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground border-t">Objects (will be wrapped in array):</div>
+                        )}
+                        {wrappableObjectPaths.map(path => {
+                          const displayPath = path === '__wrap_object__' ? '(root object → array)' : path.replace('__wrap_', '') + ' (object → array)';
+                          return (
+                            <SelectItem key={path} value={path}>
+                              {displayPath}
+                            </SelectItem>
+                          );
+                        })}
                         </SelectContent>
                     </Select>
-                    <FormDescription>e.g., 'products' if the API returns {'{ "products": [...] }'}</FormDescription>
+                    <FormDescription>
+                      {value && value !== '' 
+                        ? `✅ Auto-selected: ${value === '__root__' ? '(root array)' : value.replace('__wrap_', '').replace('_object__', ' object → array')}. You can change this if needed.`
+                        : 'Arrays are ready for tables. Objects will be automatically wrapped in arrays (e.g., { "data": {...} } → [{ "data": {...} }])'
+                      }
+                    </FormDescription>
                     <FormMessage />
                 </FormItem>
             )}} />
@@ -483,6 +580,7 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
             <div>Data Path: "{dataPath}"</div>
             <div>Selected Data Path: "{selectedDataPath}"</div>
             <div>Array Paths: [{arrayPaths.join(', ')}]</div>
+            <div>Wrappable Object Paths: [{wrappableObjectPaths.join(', ')}]</div>
             <div>Data for Keys Type: {dataForKeys ? (Array.isArray(dataForKeys) ? `Array[${dataForKeys.length}]` : typeof dataForKeys) : 'undefined'}</div>
             <div>First Item Keys: {Array.isArray(dataForKeys) && dataForKeys.length > 0 ? Object.keys(dataForKeys[0]).join(', ') : 'N/A'}</div>
           </div>

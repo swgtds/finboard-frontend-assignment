@@ -12,8 +12,8 @@ const requestQueue = new Map<string, { timestamp: number; count: number }>();
 
 // Enhanced rate limiting for different API providers
 const API_RATE_LIMITS = {
-  'coingecko.com': { maxRequests: 3, windowMs: 60000 }, // 3 requests per minute for CoinGecko
-  'default': { maxRequests: 10, windowMs: 60000 } // 10 requests per minute for other APIs
+  'coingecko.com': { maxRequests: 3, windowMs: 60000 }, // 3 requests per minute for CoinGecko only
+  'default': { maxRequests: 30, windowMs: 60000 } // 30 requests per minute for other APIs (much more lenient)
 };
 
 // Clean expired cache entries periodically
@@ -33,18 +33,15 @@ setInterval(() => {
   }
 }, 60000); // Clean every minute
 
-// Enhanced rate limiting with API-specific limits
+// Enhanced rate limiting with API-specific limits (only strict for CoinGecko)
 function isRateLimited(url: string): boolean {
-  const now = Date.now();
-  
-  // Determine rate limit based on API provider
-  let rateLimit = API_RATE_LIMITS.default;
-  for (const [domain, limit] of Object.entries(API_RATE_LIMITS)) {
-    if (domain !== 'default' && url.includes(domain)) {
-      rateLimit = limit;
-      break;
-    }
+  // Only apply strict rate limiting to CoinGecko
+  if (!url.includes('coingecko.com')) {
+    return false; // No rate limiting for non-CoinGecko APIs
   }
+  
+  const now = Date.now();
+  const rateLimit = API_RATE_LIMITS['coingecko.com'];
   
   const entry = requestQueue.get(url);
 
@@ -101,17 +98,14 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Check cache first (unless skipCache is true)
-  if (!skipCache) {
+  // Check cache first (only for CoinGecko, unless skipCache is true)
+  if (!skipCache && url.includes('coingecko.com')) {
     const cached = cache.get(url);
     if (cached) {
-      const isCoingecko = url.includes('coingecko.com');
-      const maxAge = isCoingecko ? 300 : 60; // 5 minutes for CoinGecko, 1 minute for others
-      
       return NextResponse.json(cached.data, {
         headers: {
           'X-Cache': 'HIT',
-          'Cache-Control': `public, max-age=${maxAge}`,
+          'Cache-Control': 'public, max-age=300',
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type',
@@ -120,16 +114,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Check rate limiting with specific error message
+  // Check rate limiting with specific error message (only for CoinGecko)
   if (isRateLimited(url)) {
-    const isCoingecko = url.includes('coingecko.com');
-    const waitTime = isCoingecko ? '1 minute' : '60 seconds';
-    const message = isCoingecko 
-      ? `CoinGecko API rate limit exceeded. Please wait ${waitTime} before making another request. The free tier allows only 3 requests per minute.`
-      : `Rate limit exceeded. Please wait ${waitTime} before making another request.`;
-      
     return NextResponse.json(
-      { error: message },
+      { error: 'CoinGecko API rate limit exceeded. Please wait 1 minute before making another request. The free tier allows only 3 requests per minute.' },
       { status: 429 }
     );
   }
@@ -183,21 +171,21 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
 
-    // Enhanced caching with longer TTL for certain APIs
+    // Only cache CoinGecko responses to reduce API calls
     const isCoingecko = url.includes('coingecko.com');
-    const cacheTTL = isCoingecko ? 300000 : 60000; // 5 minutes for CoinGecko, 1 minute for others
-
-    // Cache successful responses
-    cache.set(url, {
-      data,
-      timestamp: Date.now(),
-      ttl: cacheTTL,
-    });
+    if (isCoingecko) {
+      const cacheTTL = 300000; // 5 minutes for CoinGecko
+      cache.set(url, {
+        data,
+        timestamp: Date.now(),
+        ttl: cacheTTL,
+      });
+    }
 
     return NextResponse.json(data, {
       headers: {
-        'X-Cache': 'MISS',
-        'Cache-Control': `public, max-age=${cacheTTL / 1000}`,
+        'X-Cache': isCoingecko ? 'MISS' : 'NO-CACHE',
+        'Cache-Control': isCoingecko ? 'public, max-age=300' : 'no-cache',
         // Add CORS headers to allow frontend access
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, OPTIONS',

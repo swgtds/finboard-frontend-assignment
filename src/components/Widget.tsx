@@ -43,9 +43,18 @@ export function Widget({ widget }: WidgetProps) {
     }
     setError(null);
     try {
-      const response = await fetch(widget.apiUrl);
+      // Use the proxy API to avoid CORS issues
+      let proxyUrl = `/api/proxy?url=${encodeURIComponent(widget.apiUrl)}`;
+      
+      // For manual refresh on non-CoinGecko APIs, add cache-busting parameter
+      if (isManualRefresh && !widget.apiUrl.includes('coingecko.com')) {
+        proxyUrl += '&skipCache=true';
+      }
+      
+      const response = await fetch(proxyUrl);
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
       const jsonData = await response.json();
       setData(jsonData);
@@ -70,8 +79,7 @@ export function Widget({ widget }: WidgetProps) {
     fetchData(true);
     if (widget.refreshInterval > 0) {
       setShowRefreshMessage(true);
-      const timer = setTimeout(() => setShowRefreshMessage(false), 3000);
-      return () => clearTimeout(timer);
+      setTimeout(() => setShowRefreshMessage(false), 3000);
     }
   };
 
@@ -87,7 +95,24 @@ export function Widget({ widget }: WidgetProps) {
   const renderWidgetContent = () => {
     if (!data) return null;
 
-    const widgetData = get(data, widget.dataPath, data);
+    let widgetData;
+    
+    // Handle data transformation for table display
+    if (widget.dataPath?.startsWith('__wrap_')) {
+      // Handle object wrapping for table widgets
+      if (widget.dataPath === '__wrap_object__') {
+        // Wrap root object in array
+        widgetData = Array.isArray(data) ? data : [data];
+      } else {
+        // Wrap object at specific path in array
+        const pathToWrap = widget.dataPath.replace('__wrap_', '');
+        const objectToWrap = get(data, pathToWrap, null);
+        widgetData = objectToWrap ? (Array.isArray(objectToWrap) ? objectToWrap : [objectToWrap]) : [];
+      }
+    } else {
+      // Normal path extraction
+      widgetData = widget.dataPath ? get(data, widget.dataPath, data) : data;
+    }
 
     switch (widget.type) {
       case "card":
