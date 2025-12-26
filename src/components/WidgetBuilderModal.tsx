@@ -595,30 +595,13 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
                     </Select>
                     <FormDescription>
                       {value && value !== '' 
-                        ? `✅ Auto-selected: ${value === '__root__' ? '(root array)' : value.replace('__wrap_', '').replace('_object__', ' object → array')}. You can change this if needed.`
+                        ? `Auto-selected: ${value === '__root__' ? '(root array)' : value.replace('__wrap_', '').replace('_object__', ' object → array')}. You can change this if needed.`
                         : 'Arrays are ready for tables. Objects will be automatically wrapped in arrays (e.g., { "data": {...} } → [{ "data": {...} }])'
                       }
                     </FormDescription>
                     <FormMessage />
                 </FormItem>
             )}} />
-        )}
-
-        {/* Debug info - remove in production */}
-        {widgetType === "table" && (
-          <div className="p-2 bg-gray-100 text-xs rounded">
-            <div>Debug Info:</div>
-            <div>Widget Type: {widgetType}</div>
-            <div>Has API Data: {testApiState.data ? 'Yes' : 'No'}</div>
-            <div>API Data Type: {testApiState.data ? (Array.isArray(testApiState.data) ? 'Array' : 'Object') : 'None'}</div>
-            <div>API Data Keys: {apiDataKeys.length} ({apiDataKeys.join(', ')})</div>
-            <div>Data Path: "{dataPath}"</div>
-            <div>Selected Data Path: "{selectedDataPath}"</div>
-            <div>Array Paths: [{arrayPaths.join(', ')}]</div>
-            <div>Wrappable Object Paths: [{wrappableObjectPaths.join(', ')}]</div>
-            <div>Data for Keys Type: {dataForKeys ? (Array.isArray(dataForKeys) ? `Array[${dataForKeys.length}]` : typeof dataForKeys) : 'undefined'}</div>
-            <div>First Item Keys: {Array.isArray(dataForKeys) && dataForKeys.length > 0 ? Object.keys(dataForKeys[0]).join(', ') : 'N/A'}</div>
-          </div>
         )}
 
         {widgetType === "table" && testApiState.data && apiDataKeys.length > 0 && (
