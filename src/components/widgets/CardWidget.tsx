@@ -14,11 +14,7 @@ export function CardWidget({ data, config }: CardWidgetProps) {
 
   const gridCols = itemCount === 1 
     ? 'grid-cols-1' 
-    : itemCount === 2 
-    ? 'grid-cols-1 sm:grid-cols-2' 
-    : itemCount === 3 
-    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
-    : 'grid-cols-2';
+    : 'grid-cols-1 sm:grid-cols-2';
   
   return (
     <div className={`grid gap-3 lg:gap-4 ${gridCols} flex-1 p-3 lg:p-4 h-full place-content-start items-start`}>
