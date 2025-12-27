@@ -2,6 +2,7 @@
 
 import { useMemo, useEffect, useRef, useState, useCallback } from "react";
 import { Line } from "react-chartjs-2";
+import get from "lodash/get";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -31,7 +32,7 @@ ChartJS.register(
 );
 
 type ChartWidgetProps = {
-  data: any[];
+  data: any[] | any;
   config: WidgetConfig & ChartWidgetConfig;
   variant?: "line" | "area";
   showPoints?: boolean;
@@ -147,6 +148,65 @@ export function ChartWidget({
   }, [handleResize]);
 
   const formattedData: FormattedDataPoint[] = useMemo(() => {
+    if (!Array.isArray(rawData) && typeof rawData === 'object' && rawData !== null) {
+ 
+      if ('Global Quote' in rawData) {
+        const quote = rawData['Global Quote'];
+
+        if (config.categoryKey && config.valueKey) {
+          let categoryValue = get(rawData, config.categoryKey);
+          let value = get(rawData, config.valueKey);
+          
+          if (categoryValue === undefined || value === undefined) {
+            const extractLastKey = (path: string): string | null => {
+              const matches = path.match(/\["([^"]+)"\]/g);
+              if (matches && matches.length > 0) {
+                const lastMatch = matches[matches.length - 1];
+                return lastMatch.slice(2, -2); 
+              }
+              return null;
+            };
+            
+            const catKey = extractLastKey(config.categoryKey);
+            const valKey = extractLastKey(config.valueKey);
+            
+            if (catKey && quote[catKey] !== undefined) {
+              categoryValue = quote[catKey];
+            }
+            if (valKey && quote[valKey] !== undefined) {
+              value = quote[valKey];
+            }
+          }
+          
+          if (categoryValue !== undefined && value !== undefined) {
+            return [{
+              category: String(categoryValue),
+              value: Number(String(value).replace(/[^0-9.-]/g, '')) || 0
+            }];
+          }
+        }
+        return [{
+          category: quote['07. latest trading day'] || new Date().toLocaleDateString(),
+          value: Number(quote['05. price']) || 0,
+          timestamp: quote['07. latest trading day'] ? new Date(quote['07. latest trading day']).getTime() : undefined
+        }];
+      }
+      
+      if (config.categoryKey && config.valueKey) {
+        const categoryValue = get(rawData, config.categoryKey);
+        const value = get(rawData, config.valueKey);
+        
+        if (categoryValue !== undefined && value !== undefined) {
+          return [{
+            category: String(categoryValue),
+            value: Number(String(value).replace(/[^0-9.-]/g, '')) || 0
+          }];
+        }
+      }
+      
+      return [];
+    }
+
     if (!Array.isArray(rawData)) return [];
     
     const processData = () => {
@@ -386,13 +446,38 @@ export function ChartWidget({
     chartDimensions.width
   ]);
 
+  // Helper function to extract a friendly label from bracket notation paths
+  const getFriendlyLabel = (path: string): string => {
+    if (!path) return 'Value';
+    
+    // Extract the last key from bracket notation like ["Global Quote"]["02. open"]
+    const matches = path.match(/\["([^"]+)"\]/g);
+    if (matches && matches.length > 0) {
+      const lastMatch = matches[matches.length - 1];
+      const key = lastMatch.slice(2, -2); // Remove [" and "]
+      // Extract the label part after the number prefix (e.g., "02. open" -> "Open")
+      const labelMatch = key.match(/^\d+\.\s*(.+)$/);
+      if (labelMatch) {
+        // Capitalize first letter
+        const label = labelMatch[1];
+        return label.charAt(0).toUpperCase() + label.slice(1);
+      }
+      return key;
+    }
+    
+    // For dot notation, get the last part
+    const parts = path.split('.');
+    const lastPart = parts[parts.length - 1];
+    return lastPart.charAt(0).toUpperCase() + lastPart.slice(1);
+  };
+
   // Chart data with gradient fills and animations
   const chartData = useMemo(() => {
     return {
       labels: formattedData.map((d) => d.category),
       datasets: [
         {
-          label: config.title || config.valueKey,
+          label: config.title || getFriendlyLabel(config.valueKey),
           data: formattedData.map((d) => d.value),
           borderColor: chartColors.line,
           backgroundColor: variant === "area" ? chartColors.fill : 'transparent',

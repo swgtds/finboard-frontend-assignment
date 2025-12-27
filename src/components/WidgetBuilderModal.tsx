@@ -97,7 +97,6 @@ const getObjectKeys = (obj: any, prefix = "", isRootArray = false): string[] => 
 
     if (Array.isArray(obj)) {
         if (obj.length > 0) {
-            // For array data, get keys from first item
             const firstItemKeys = getObjectKeys(obj[0], "", false);
             return firstItemKeys;
         }
@@ -105,7 +104,11 @@ const getObjectKeys = (obj: any, prefix = "", isRootArray = false): string[] => 
     }
     
     return Object.keys(obj).reduce((acc: string[], key: string) => {
-        const newPrefix = prefix ? `${prefix}.${key}` : key;
+        const hasSpecialChars = /[\s.]/.test(key);
+        const newPrefix = prefix 
+            ? (hasSpecialChars ? `${prefix}["${key}"]` : `${prefix}.${key}`)
+            : (hasSpecialChars ? `["${key}"]` : key);
+        
         if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
             acc.push(...getObjectKeys(obj[key], newPrefix, false));
         } else {
