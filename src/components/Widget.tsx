@@ -70,6 +70,12 @@ export function Widget({ widget }: WidgetProps) {
           console.error('Failed to read response text:', textError);
           errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         }
+
+        // Special handling for rate limit errors
+        if (response.status === 429) {
+          errorMessage = errorMessage + ' The widget will automatically retry when the rate limit resets.';
+        }
+
         throw new Error(errorMessage);
       }
       
@@ -87,7 +93,21 @@ export function Widget({ widget }: WidgetProps) {
       setData(jsonData);
     } catch (e: any) {
       console.error(`Failed to fetch data for widget ${widget.id}:`, e);
-      setError(e.message || 'Unknown error occurred');
+      
+      // Handle rate limiting with automatic retry
+      if (e.message && e.message.includes('3 requests per minute')) {
+        setError(`${e.message} Widget will retry automatically.`);
+        
+        // Retry after 65 seconds (slightly longer than the rate limit window)
+        setTimeout(() => {
+          if (!isManualRefresh) {
+            console.log(`Retrying rate-limited request for widget ${widget.id}`);
+            fetchData(false);
+          }
+        }, 65000);
+      } else {
+        setError(e.message || 'Unknown error occurred');
+      }
     } finally {
       setIsInitialLoading(false);
       setIsRefreshing(false);
