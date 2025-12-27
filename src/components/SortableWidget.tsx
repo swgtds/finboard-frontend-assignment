@@ -66,9 +66,8 @@ export function SortableWidget({ widget }: SortableWidgetProps) {
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
       className={cn(
-        'cursor-move transition-all duration-200 ease-out',
+        'transition-all duration-200 ease-out',
         // For chart widgets: only apply shadow and translate, no scaling effects at all
         isChart && 'hover:shadow-lg hover:-translate-y-1',
         // For non-chart widgets: apply all hover effects including scaling
@@ -79,7 +78,7 @@ export function SortableWidget({ widget }: SortableWidgetProps) {
         sizeClass
       )}
     >
-      <Widget widget={widget} />
+      <Widget widget={widget} dragHandleProps={listeners} />
     </div>
   );
 

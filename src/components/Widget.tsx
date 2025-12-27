@@ -23,12 +23,14 @@ import { Input } from "./ui/input";
 import { WidgetBuilderModal } from "./WidgetBuilderModal";
 import { cn } from "@/lib/utils";
 import { shouldCacheApi, getRateLimitConfig } from "@/config/apiRateLimits";
+import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 
 type WidgetProps = {
   widget: WidgetConfig;
+  dragHandleProps?: SyntheticListenerMap;
 };
 
-export function Widget({ widget }: WidgetProps) {
+export function Widget({ widget, dragHandleProps }: WidgetProps) {
   const [data, setData] = useState<any>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -256,10 +258,13 @@ export function Widget({ widget }: WidgetProps) {
     >
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3 px-4 pt-4">
         <div className="flex items-start space-x-2 flex-1 mr-2">
-          <div className="flex items-center justify-center w-5 h-5 mt-1 opacity-40 group-hover:opacity-70 transition-opacity duration-200">
+          <div 
+            {...(dragHandleProps || {})}
+            className="flex items-center justify-center w-5 h-5 mt-1 opacity-40 group-hover:opacity-70 transition-opacity duration-200 cursor-grab active:cursor-grabbing"
+          >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </div>
-          <div className="flex-1 space-y-1">
+          <div className="flex-1 space-y-1 select-text">
             <div onDoubleClick={() => setIsEditingTitle(true)}>
               {isEditingTitle ? (
                 <Input
@@ -271,7 +276,7 @@ export function Widget({ widget }: WidgetProps) {
                   className="h-8"
                 />
               ) : (
-                <CardTitle className="text-base lg:text-lg font-semibold cursor-pointer leading-tight text-foreground">
+                <CardTitle className="text-base lg:text-lg font-semibold cursor-pointer leading-tight text-foreground select-text">
                   {widget.title}
                 </CardTitle>
               )}
@@ -317,7 +322,7 @@ export function Widget({ widget }: WidgetProps) {
         </div>
 
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col px-0 pb-4">
+      <CardContent className="flex-1 flex flex-col px-0 pb-4 select-text">
         {isInitialLoading ? (
           <div className="flex-1 p-3 lg:p-4">
             <Skeleton className="w-full h-full min-h-[100px]" />
@@ -329,7 +334,9 @@ export function Widget({ widget }: WidgetProps) {
             <p className="text-xs">{error}</p>
           </div>
         ) : (
-          renderWidgetContent()
+          <div className="select-text">
+            {renderWidgetContent()}
+          </div>
         )}
       </CardContent>
     </Card>

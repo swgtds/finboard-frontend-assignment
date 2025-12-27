@@ -50,7 +50,7 @@ export function TableWidget({ data, config }: TableWidgetProps) {
   }
   
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full select-text">
       <div className="px-4 pb-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -72,7 +72,7 @@ export function TableWidget({ data, config }: TableWidgetProps) {
               <TableHeader>
                 <TableRow>
                   {config.columns.map((col, index) => (
-                    <TableHead key={index} className="font-semibold text-foreground">{col.header}</TableHead>
+                    <TableHead key={index} className="font-semibold text-foreground select-text">{col.header}</TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
@@ -80,7 +80,7 @@ export function TableWidget({ data, config }: TableWidgetProps) {
                 {paginatedData.map((row, rowIndex) => (
                   <TableRow key={rowIndex} className="hover:bg-muted/50 transition-colors">
                     {config.columns.map((col, colIndex) => (
-                      <TableCell key={colIndex} className="text-sm">{get(row, col.dataPath)}</TableCell>
+                      <TableCell key={colIndex} className="text-sm select-text">{get(row, col.dataPath)}</TableCell>
                     ))}
                   </TableRow>
                 ))}

@@ -506,12 +506,12 @@ export function ChartWidget({
   }
 
   return (
-    <div className="h-full w-full flex flex-col">
+    <div className="h-full w-full flex flex-col select-text">
       <div 
         ref={containerRef}
         className={cn(
           "w-full h-full relative transition-all duration-300 ease-out",
-          "chart-container"
+          "chart-container select-text"
         )}
         style={{
           '--chart-transition': '300ms',
