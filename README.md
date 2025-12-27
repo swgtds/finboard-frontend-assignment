@@ -2,6 +2,16 @@
 
 A customizable personal finance dashboard built with Next.js, TypeScript, Tailwind CSS, and modern React tooling. Compose dashboards from drag-and-drop widgets (cards, charts, tables), use configurable templates, and connect widgets to API-backed data for live financial metrics.
 
+<p align="center">
+	<img src="blob/home-page.png" alt="FinBoard home page" width="800" />
+</p>
+
+<p align="center">
+	<img src="blob/template.png" alt="FinBoard templates sidebar" width="380" />
+	&nbsp;&nbsp;
+	<img src="blob/widget.png" alt="FinBoard widget builder" width="380" />
+</p>
+
 ## Features
 
 - **Widget-based dashboard** – Cards, charts, and tables to visualize financial data.
