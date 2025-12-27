@@ -43,6 +43,25 @@ export const widgetTemplates: WidgetTemplate[] = [
     } as Omit<ChartWidgetConfig, 'id'>
   },
   {
+    id: 'top-10-crypto',
+    name: 'Top 10 Cryptocurrencies',
+    description: 'Top 10 cryptocurrencies by market cap with prices and 24h changes',
+    category: 'crypto',
+    config: {
+      title: 'Top 10 Crypto by Market Cap',
+      apiUrl: 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=false',
+      refreshInterval: 300, // 5 minutes
+      type: 'table',
+      dataPath: '',
+      columns: [
+        { header: 'Rank', dataPath: 'market_cap_rank' },
+        { header: 'Name', dataPath: 'name' },
+        { header: 'Symbol', dataPath: 'symbol' },
+        { header: 'Price (USD)', dataPath: 'current_price' }
+      ]
+    } as Omit<TableWidgetConfig, 'id'>
+  },
+  {
     id: 'stocks-52week-high',
     name: 'Stocks 52-Week High',
     description: 'Stocks trading near their 52-week highs',
