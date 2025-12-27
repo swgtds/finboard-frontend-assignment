@@ -78,5 +78,24 @@ export const widgetTemplates: WidgetTemplate[] = [
         { header: '52W High', dataPath: '52_week_high' }
       ]
     } as Omit<TableWidgetConfig, 'id'>
+  },
+  {
+    id: 'stocks-52week-low',
+    name: 'Stocks 52-Week Low',
+    description: 'Top 6 Indian stocks trading near their 52-week lows',
+    category: 'stocks',
+    config: {
+      title: '52-Week Low Stocks',
+      apiUrl: 'https://stock.indianapi.in/fetch_52_week_high_low_data',
+      refreshInterval: 1800, 
+      type: 'table',
+      dataPath: 'BSE_52WeekHighLow.low52Week',
+      columns: [
+        { header: 'Ticker', dataPath: 'ticker' },
+        { header: 'Company', dataPath: 'company' },
+        { header: 'Current Price', dataPath: 'price' },
+        { header: '52W Low', dataPath: '52_week_low' }
+      ]
+    } as Omit<TableWidgetConfig, 'id'>
   }
 ];
