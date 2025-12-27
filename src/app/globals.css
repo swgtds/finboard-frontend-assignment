@@ -178,6 +178,26 @@ body {
   color: hsl(var(--primary));
 }
 
+/* Prevent widget hover effects when hovering over buttons */
+.widget-header-buttons {
+  pointer-events: auto;
+  z-index: 20;
+}
+
+.widget-header-buttons button:hover {
+  transform: none !important;
+}
+
+/* Isolate button hover effects from parent widget hover */
+[data-widget-type] button:hover {
+  transform: none !important;
+}
+
+[data-widget-type]:has(button:hover) {
+  transform: none !important;
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow) !important;
+}
+
 /* Dragging state effects */
 .widget-dragging {
   transform: rotate(2deg) scale(1.02);

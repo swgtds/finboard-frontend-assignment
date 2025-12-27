@@ -243,12 +243,24 @@ export function Widget({ widget }: WidgetProps) {
           </div>
         </div>
         
-        <div className="flex items-center space-x-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleRefreshClick} disabled={isRefreshing}>
+        <div className="flex items-center space-x-1 relative z-10 widget-header-buttons">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-7 w-7 hover:bg-accent hover:text-accent-foreground" 
+            onClick={handleRefreshClick} 
+            disabled={isRefreshing}
+            onMouseEnter={(e) => e.stopPropagation()}
+          >
              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
           </Button>
           <WidgetBuilderModal widgetToEdit={widget}>
-            <Button variant="ghost" size="icon" className="h-7 w-7">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-7 w-7 hover:bg-accent hover:text-accent-foreground"
+              onMouseEnter={(e) => e.stopPropagation()}
+            >
               <Pencil className="h-4 w-4" />
             </Button>
           </WidgetBuilderModal>
@@ -257,6 +269,7 @@ export function Widget({ widget }: WidgetProps) {
             size="icon"
             className="h-7 w-7 text-red-500 hover:text-red-500 hover:bg-red-500/10"
             onClick={() => removeWidget(widget.id)}
+            onMouseEnter={(e) => e.stopPropagation()}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
