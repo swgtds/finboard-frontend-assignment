@@ -14,6 +14,13 @@ export const API_RATE_LIMITS: ApiRateLimitConfig[] = [
     cacheMs: 600000, // 10 minutes (increased from 5 minutes)
     description: 'CoinGecko free tier: 3 requests per minute'
   },
+  {
+    domain: 'indianapi.in',
+    maxRequests: 1,
+    windowMs: 5400000, // 1.5 hours (90 minutes)
+    cacheMs: 5400000, // 1.5 hours cache to match rate limit
+    description: 'Indian API: 1 request per 1.5 hours (500/month limit)'
+  },
 ];
 
 export function getRateLimitConfig(url: string): ApiRateLimitConfig | null {

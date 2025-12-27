@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/select";
 import { useDashboardStore } from "@/store/dashboardStore";
 import type { WidgetConfig, WidgetType } from "@/lib/types";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { JsonViewer } from "./JsonViewer";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "./ui/checkbox";
@@ -46,6 +46,7 @@ const baseSchema = z.object({
   title: z.string().min(1, "Title is required"),
   apiUrl: z.string().url("Must be a valid URL"),
   refreshInterval: z.coerce.number().int().positive("Must be a positive number"),
+  apiKey: z.string().optional(),
 });
 
 const cardSchema = baseSchema.extend({
@@ -175,7 +176,6 @@ const getWrappableObjectPaths = (data: any, prefix = ''): string[] => {
         if (Object.prototype.hasOwnProperty.call(data, key)) {
             const newPath = prefix ? `${prefix}.${key}` : key;
             if (!Array.isArray(data[key]) && typeof data[key] === 'object' && data[key] !== null) {
-                // This is an object that can be wrapped
                 paths.push(`__wrap_${newPath}`);
                 paths = paths.concat(getWrappableObjectPaths(data[key], newPath));
             }
@@ -188,6 +188,7 @@ const getWrappableObjectPaths = (data: any, prefix = ''): string[] => {
 export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModalProps) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
+  const [showApiKey, setShowApiKey] = useState(false);
   const [testApiState, setTestApiState] = useState<{loading: boolean; data: any; error: string | null}>({
     loading: false,
     data: null,
@@ -210,6 +211,7 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
       type: widgetToEdit.type,
       apiUrl: widgetToEdit.apiUrl,
       refreshInterval: widgetToEdit.refreshInterval,
+      apiKey: widgetToEdit.apiKey || '',
       items: widgetToEdit.type === 'card' ? widgetToEdit.items : [],
       dataPath: (widgetToEdit.type === 'table' || widgetToEdit.type === 'chart') ? widgetToEdit.dataPath : '',
       columns: widgetToEdit.type === 'table' ? widgetToEdit.columns : [],
@@ -219,6 +221,7 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
       title: "",
       apiUrl: "",
       refreshInterval: 60,
+      apiKey: "",
       type: "card" as WidgetType,
       items: [],
       dataPath: "",
@@ -248,17 +251,12 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
   
   const selectedDataPath = dataPath === '__root__' ? '' : dataPath;
 
-  // For table and chart widgets, get the data from the selected path
-  // For root arrays, use the array directly
   let dataForKeys;
   if (widgetType === 'table' || widgetType === 'chart') {
-    // Handle special transformation cases
     if (selectedDataPath === '__wrap_object__') {
-      // Wrap single object in array for table display
       const rootData = testApiState.data;
       dataForKeys = Array.isArray(rootData) ? rootData : [rootData];
     } else if (selectedDataPath?.startsWith('__wrap_')) {
-      // Wrap object at specific path in array
       const pathToWrap = selectedDataPath.replace('__wrap_', '');
       const objectToWrap = get(testApiState.data, pathToWrap);
       dataForKeys = Array.isArray(objectToWrap) ? objectToWrap : [objectToWrap];
@@ -287,6 +285,7 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
 
   const handleTestApiAndNext = async () => {
     const apiUrl = form.getValues("apiUrl");
+    const apiKey = form.getValues("apiKey");
     if (!apiUrl) {
       form.setError("apiUrl", { type: "manual", message: "API URL is required to test." });
       return;
@@ -316,15 +315,40 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
 
     setTestApiState({ loading: true, data: null, error: null });
     try {
-      const proxyUrl = `/api/proxy?url=${encodeURIComponent(apiUrl)}`;
-      console.log('Testing API:', { apiUrl, proxyUrl });
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(apiUrl)}${apiKey ? `&apiKey=${encodeURIComponent(apiKey)}` : ''}`;
+      console.log('Testing API:', { apiUrl, proxyUrl, hasApiKey: !!apiKey });
       
       const res = await fetch(proxyUrl);
       console.log('Response status:', res.status, res.statusText);
       
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        throw new Error(errorData.error || `Request failed with status ${res.status}`);
+        let errorMessage = errorData.error || `Request failed with status ${res.status}`;
+        
+        // Enhanced error handling for common API authentication issues
+        if (res.status === 401) {
+          if (!apiKey) {
+            errorMessage = "API key required. This API requires authentication. Please enter your API key in the field above.";
+          } else {
+            errorMessage = "Invalid API key. Please check your API key and try again.";
+          }
+        } else if (res.status === 403) {
+          if (!apiKey) {
+            errorMessage = "Access forbidden. This API may require an API key for authentication. Please enter your API key if you have one.";
+          } else {
+            errorMessage = "Access forbidden. Your API key may not have permission to access this endpoint, or you may have exceeded your quota.";
+          }
+        } else if (res.status === 400) {
+          if (!apiKey && errorMessage.toLowerCase().includes('unauthorized')) {
+            errorMessage = "Bad request - API key may be required. Please enter your API key if this API requires authentication.";
+          } else if (!apiKey && (errorMessage.toLowerCase().includes('api key') || errorMessage.toLowerCase().includes('authentication'))) {
+            errorMessage = "API key required. This API requires authentication. Please enter your API key in the field above.";
+          }
+        } else if (res.status === 429) {
+          errorMessage = "Rate limit exceeded. Please wait before making another request.";
+        }
+        
+        throw new Error(errorMessage);
       }
       
       const data = await res.json();
@@ -462,6 +486,38 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
         <FormItem><FormLabel>API URL</FormLabel><FormControl><Input {...field} placeholder="https://api.example.com/data" /></FormControl><FormMessage /></FormItem>
       )} />
 
+      <FormField control={form.control} name="apiKey" render={({ field }) => (
+        <FormItem>
+          <FormLabel>API Key (if required as header)</FormLabel>
+          <FormControl>
+            <div className="relative">
+              <Input 
+                {...field} 
+                placeholder="Enter API key if required (will be sent as X-Api-Key header)" 
+                type={showApiKey ? "text" : "password"} 
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                onClick={() => setShowApiKey(!showApiKey)}
+              >
+                {showApiKey ? (
+                  <EyeOff className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                )}
+              </Button>
+            </div>
+          </FormControl>
+          <FormDescription>
+            Optional. Some APIs require an API key to be sent in the X-Api-Key header.
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )} />
+
        <FormField control={form.control} name="refreshInterval" render={({ field }) => (
         <FormItem><FormLabel>Refresh Interval (seconds)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
       )} />
@@ -571,7 +627,7 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
         
         {(widgetType === "table" || widgetType === "chart") && (
             <FormField control={form.control} name="dataPath" render={({ field }) => {
-                const value = field.value === '' ? '__root__' : field.value;
+                const value = field.value === '' ? '__root__' : (field.value || '');
                 return (
                 <FormItem>
                     <FormLabel>Data Array Path</FormLabel>
@@ -597,7 +653,7 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
                         </SelectContent>
                     </Select>
                     <FormDescription>
-                      {value && value !== '' 
+                      {value && value !== '' && typeof value === 'string'
                         ? `Auto-selected: ${value === '__root__' ? '(root array)' : value.replace('__wrap_', '').replace('_object__', ' object → array')}. You can change this if needed.`
                         : 'Arrays are ready for tables. Objects will be automatically wrapped in arrays (e.g., { "data": {...} } → [{ "data": {...} }])'
                       }

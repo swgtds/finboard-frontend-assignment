@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const url = searchParams.get('url');
   const skipCache = searchParams.get('skipCache') === 'true';
+  const apiKey = searchParams.get('apiKey');
 
   if (!url) {
     return NextResponse.json(
@@ -88,7 +89,9 @@ export async function GET(request: NextRequest) {
   }
 
   if (!skipCache && shouldCacheApi(url)) {
-    const cached = cache.get(url);
+    // Create a unique cache key that includes the API key if present
+    const cacheKey = apiKey ? `${url}:${apiKey}` : url;
+    const cached = cache.get(cacheKey);
     if (cached) {
       const cacheDuration = getCacheDuration(url) / 1000; 
       return NextResponse.json(cached.data, {
@@ -121,6 +124,10 @@ export async function GET(request: NextRequest) {
       'Accept-Language': 'en-US,en;q=0.9',
     };
 
+    // Add API key to headers if provided
+    if (apiKey) {
+      headers['X-Api-Key'] = apiKey;
+    }
 
     if (url.includes('coingecko.com')) {
       headers['Referer'] = 'https://coingecko.com';
@@ -139,8 +146,24 @@ export async function GET(request: NextRequest) {
     }
 
     if (!response.ok) {
+      let errorMessage = `HTTP error! status: ${response.status} - ${response.statusText}`;
+      
+      // Enhanced error messages for common authentication issues
+      if (response.status === 401) {
+        errorMessage = "Unauthorized: API key required or invalid";
+      } else if (response.status === 403) {
+        errorMessage = "Forbidden: Invalid API key or insufficient permissions";
+      } else if (response.status === 400) {
+        const responseText = await response.text().catch(() => '');
+        if (responseText.toLowerCase().includes('api key') || 
+            responseText.toLowerCase().includes('authentication') ||
+            responseText.toLowerCase().includes('unauthorized')) {
+          errorMessage = "Bad Request: API key required for this endpoint";
+        }
+      }
+      
       return NextResponse.json(
-        { error: `HTTP error! status: ${response.status} - ${response.statusText}` },
+        { error: errorMessage },
         { status: response.status }
       );
     }
@@ -158,7 +181,9 @@ export async function GET(request: NextRequest) {
     const shouldCache = shouldCacheApi(url);
     if (shouldCache) {
       const cacheTTL = getCacheDuration(url);
-      cache.set(url, {
+      // Create a unique cache key that includes the API key if present
+      const cacheKey = apiKey ? `${url}:${apiKey}` : url;
+      cache.set(cacheKey, {
         data,
         timestamp: Date.now(),
         ttl: cacheTTL,

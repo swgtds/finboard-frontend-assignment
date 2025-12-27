@@ -47,6 +47,11 @@ export function Widget({ widget }: WidgetProps) {
     try {
       let proxyUrl = `/api/proxy?url=${encodeURIComponent(widget.apiUrl)}`;
       
+      // Add API key if provided
+      if (widget.apiKey) {
+        proxyUrl += `&apiKey=${encodeURIComponent(widget.apiKey)}`;
+      }
+      
       if (isManualRefresh && !shouldCacheApi(widget.apiUrl)) {
         proxyUrl += '&skipCache=true';
       }
@@ -111,7 +116,7 @@ export function Widget({ widget }: WidgetProps) {
       setIsInitialLoading(false);
       setIsRefreshing(false);
     }
-  }, [widget.apiUrl, widget.id]);
+  }, [widget.apiUrl, widget.apiKey, widget.id]);
 
   useEffect(() => {
     fetchData();

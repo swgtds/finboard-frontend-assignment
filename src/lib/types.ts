@@ -15,6 +15,7 @@ export type CardWidgetConfig = {
   type: "card";
   dataPath?: string;
   items: CardItem[];
+  apiKey?: string;
 };
 
 export type TableColumn = {
@@ -30,6 +31,7 @@ export type TableWidgetConfig = {
   type: "table";
   dataPath: string;
   columns: TableColumn[];
+  apiKey?: string;
 };
 
 export type ChartWidgetConfig = {
@@ -41,6 +43,7 @@ export type ChartWidgetConfig = {
   dataPath: string;
   categoryKey: string;
   valueKey: string;
+  apiKey?: string;
 };
 
 export type WidgetConfig = CardWidgetConfig | TableWidgetConfig | ChartWidgetConfig;
