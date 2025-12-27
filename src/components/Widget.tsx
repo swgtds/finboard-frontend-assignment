@@ -18,6 +18,7 @@ import { ChartWidget } from "./widgets/ChartWidget";
 import type { WidgetConfig } from "@/lib/types";
 import { useDashboardStore } from "@/store/dashboardStore";
 import { Button } from "./ui/button";
+import { toast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
 import { WidgetBuilderModal } from "./WidgetBuilderModal";
 import { cn } from "@/lib/utils";
@@ -71,9 +72,21 @@ export function Widget({ widget }: WidgetProps) {
           errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         }
 
-        // Special handling for rate limit errors
         if (response.status === 429) {
-          errorMessage = errorMessage + ' The widget will automatically retry when the rate limit resets.';
+          const rateLimitMessage = `${errorMessage} The widget will automatically retry when the rate limit resets.`;
+          
+          toast({
+            title: "API Rate Limit Reached",
+            description: "CoinGecko free tier allows 3 requests per minute. This widget will automatically retry in about 1 minute.",
+            variant: "default",
+          });
+          setError(rateLimitMessage);
+          setTimeout(() => {
+            console.log(`Retrying rate-limited request for widget ${widget.id}`);
+            fetchData(false);
+          }, 65000);
+          
+          return; 
         }
 
         throw new Error(errorMessage);
@@ -93,21 +106,7 @@ export function Widget({ widget }: WidgetProps) {
       setData(jsonData);
     } catch (e: any) {
       console.error(`Failed to fetch data for widget ${widget.id}:`, e);
-      
-      // Handle rate limiting with automatic retry
-      if (e.message && e.message.includes('3 requests per minute')) {
-        setError(`${e.message} Widget will retry automatically.`);
-        
-        // Retry after 65 seconds (slightly longer than the rate limit window)
-        setTimeout(() => {
-          if (!isManualRefresh) {
-            console.log(`Retrying rate-limited request for widget ${widget.id}`);
-            fetchData(false);
-          }
-        }, 65000);
-      } else {
-        setError(e.message || 'Unknown error occurred');
-      }
+      setError(e.message || 'Unknown error occurred');
     } finally {
       setIsInitialLoading(false);
       setIsRefreshing(false);
