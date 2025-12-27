@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Pencil, Trash2, RefreshCw, AreaChart, TrendingUp } from "lucide-react";
+import { AlertCircle, Pencil, Trash2, RefreshCw } from "lucide-react";
 import { CardWidget } from "./widgets/CardWidget";
 import { TableWidget } from "./widgets/TableWidget";
 import { ChartWidget } from "./widgets/ChartWidget";
@@ -35,7 +35,6 @@ export function Widget({ widget }: WidgetProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(widget.title);
   const [showRefreshMessage, setShowRefreshMessage] = useState(false);
-  const [isAreaChart, setIsAreaChart] = useState(false);
   
   const { removeWidget, updateWidget } = useDashboardStore();
 
@@ -166,7 +165,7 @@ export function Widget({ widget }: WidgetProps) {
         case "table":
           return <TableWidget data={widgetData} config={widget} />;
         case "chart":
-          return <ChartWidget data={widgetData} config={widget} variant={isAreaChart ? "area" : "line"} />;
+          return <ChartWidget data={widgetData} config={widget} variant="area" />;
         default:
           console.warn('Unknown widget type:', (widget as any).type);
           return <div className="text-muted-foreground">Unknown widget type: {(widget as any).type}</div>;
@@ -237,17 +236,6 @@ export function Widget({ widget }: WidgetProps) {
         </div>
         
         <div className="flex items-center space-x-1">
-          {widget.type === 'chart' && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-7 w-7" 
-              onClick={() => setIsAreaChart(!isAreaChart)}
-              title={isAreaChart ? 'Switch to Line Chart' : 'Switch to Area Chart'}
-            >
-              {isAreaChart ? <TrendingUp className="h-4 w-4" /> : <AreaChart className="h-4 w-4" />}
-            </Button>
-          )}
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleRefreshClick} disabled={isRefreshing}>
              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
           </Button>
