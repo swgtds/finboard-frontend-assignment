@@ -22,7 +22,7 @@ import { toast } from "@/hooks/use-toast";
 import { Input } from "./ui/input";
 import { WidgetBuilderModal } from "./WidgetBuilderModal";
 import { cn } from "@/lib/utils";
-import { shouldCacheApi } from "@/config/apiRateLimits";
+import { shouldCacheApi, getRateLimitConfig } from "@/config/apiRateLimits";
 
 type WidgetProps = {
   widget: WidgetConfig;
@@ -36,12 +36,20 @@ export function Widget({ widget }: WidgetProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(widget.title);
   const [showRefreshMessage, setShowRefreshMessage] = useState(false);
+  const [hasAuthError, setHasAuthError] = useState(false); // Track auth errors to prevent retrying
   
   const { removeWidget, updateWidget } = useDashboardStore();
 
   const fetchData = useCallback(async (isManualRefresh = false) => {
+    // Don't retry if we have an authentication error
+    if (hasAuthError && !isManualRefresh) {
+      console.log(`Skipping automatic retry for widget ${widget.id} due to auth error`);
+      return;
+    }
+
     if (isManualRefresh) {
       setIsRefreshing(true);
+      setHasAuthError(false); // Reset auth error flag on manual refresh
     }
     setError(null);
     try {
@@ -77,12 +85,39 @@ export function Widget({ widget }: WidgetProps) {
           errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         }
 
+        // Handle authentication errors specifically for Indian API first
+        if (widget.apiUrl.includes('indianapi.in') && 
+            (response.status === 401 || response.status === 403 || 
+             (response.status === 400 && errorMessage.toLowerCase().includes('api key')) ||
+             (response.status === 429 && (errorMessage.toLowerCase().includes('unauthorized') || 
+                                         errorMessage.toLowerCase().includes('invalid') || 
+                                         errorMessage.toLowerCase().includes('api key'))))) {
+          const authErrorMessage = "Invalid API key for Indian Stock Market API. Please check your API key and try again.";
+          setHasAuthError(true); // Set flag to prevent retrying
+          toast({
+            title: "Authentication Error",
+            description: "Invalid API key for Indian Stock Market API. Please edit this widget to update your API key.",
+            variant: "destructive",
+          });
+          setError(authErrorMessage);
+          return;
+        }
+
         if (response.status === 429) {
+          const rateLimitConfig = getRateLimitConfig(widget.apiUrl);
+          let toastTitle = "API Rate Limit Reached";
+          let toastDescription = "Rate limit exceeded. This widget will automatically retry when the rate limit resets.";
+          
+          if (rateLimitConfig) {
+            toastTitle = `${rateLimitConfig.description.split(':')[0]} Rate Limit`;
+            toastDescription = `${rateLimitConfig.description}. This widget will automatically retry when the rate limit resets.`;
+          }
+          
           const rateLimitMessage = `${errorMessage} The widget will automatically retry when the rate limit resets.`;
           
           toast({
-            title: "API Rate Limit Reached",
-            description: "CoinGecko free tier allows 3 requests per minute. This widget will automatically retry in about 1 minute.",
+            title: toastTitle,
+            description: toastDescription,
             variant: "default",
           });
           setError(rateLimitMessage);
@@ -109,6 +144,7 @@ export function Widget({ widget }: WidgetProps) {
       }
       
       setData(jsonData);
+      setHasAuthError(false); // Reset auth error flag on successful fetch
     } catch (e: any) {
       console.error(`Failed to fetch data for widget ${widget.id}:`, e);
       setError(e.message || 'Unknown error occurred');
@@ -116,9 +152,10 @@ export function Widget({ widget }: WidgetProps) {
       setIsInitialLoading(false);
       setIsRefreshing(false);
     }
-  }, [widget.apiUrl, widget.apiKey, widget.id]);
+  }, [widget.apiUrl, widget.apiKey, widget.id, hasAuthError]);
 
   useEffect(() => {
+    setHasAuthError(false); // Reset auth error when widget changes
     fetchData();
     if (widget.refreshInterval > 0) {
       const interval = setInterval(() => fetchData(false), widget.refreshInterval * 1000);

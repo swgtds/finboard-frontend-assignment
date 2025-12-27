@@ -19,6 +19,8 @@ import { Layout, Sparkles, GripVertical, BarChart3, CreditCard, Table } from "lu
 import { useToast } from "@/hooks/use-toast";
 import { generateId } from "@/lib/utils";
 import type { WidgetConfig } from "@/lib/types";
+import { requiresIndianApiKey } from "@/config/apiRateLimits";
+import { IndianApiKeyDialog } from "@/components/IndianApiKeyDialog";
 
 interface TemplatesSidebarProps {
   children: React.ReactNode;
@@ -26,6 +28,8 @@ interface TemplatesSidebarProps {
 
 export function TemplatesSidebar({ children }: TemplatesSidebarProps) {
   const [open, setOpen] = useState(false);
+  const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<WidgetTemplate | null>(null);
   const { addWidget } = useDashboardStore();
   const { toast } = useToast();
 
@@ -42,10 +46,11 @@ export function TemplatesSidebar({ children }: TemplatesSidebarProps) {
     }
   };
 
-  const handleTemplateSelect = (template: WidgetTemplate) => {
+  const createWidgetFromTemplate = (template: WidgetTemplate, apiKey?: string) => {
     const newWidget: WidgetConfig = {
       ...template.config,
       id: generateId(),
+      ...(apiKey && { apiKey }),
     } as WidgetConfig;
     
     addWidget(newWidget);
@@ -55,6 +60,25 @@ export function TemplatesSidebar({ children }: TemplatesSidebarProps) {
       title: "Widget Added",
       description: `${template.name} has been added to your dashboard.`,
     });
+  };
+
+  const handleTemplateSelect = (template: WidgetTemplate) => {
+    // Check if this template requires Indian API key
+    if (requiresIndianApiKey(template.config.apiUrl)) {
+      setSelectedTemplate(template);
+      setApiKeyDialogOpen(true);
+      return;
+    }
+
+    // For other templates, create widget directly
+    createWidgetFromTemplate(template);
+  };
+
+  const handleApiKeySubmit = (apiKey: string) => {
+    if (selectedTemplate) {
+      createWidgetFromTemplate(selectedTemplate, apiKey);
+      setSelectedTemplate(null);
+    }
   };
 
   const handleDragStart = (e: React.DragEvent, template: WidgetTemplate) => {
@@ -80,86 +104,95 @@ export function TemplatesSidebar({ children }: TemplatesSidebarProps) {
   }, {} as Record<string, WidgetTemplate[]>);
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        {children}
-      </SheetTrigger>
-      <SheetContent className="w-[400px] sm:w-[540px]">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Widget Templates
-          </SheetTitle>
-          <SheetDescription>
-            Click to add ready-made stock and crypto widgets.
-          </SheetDescription>
-        </SheetHeader>
-        
-        <ScrollArea className="h-[calc(100vh-120px)] mt-4">
-          <div className="space-y-6">
-            {Object.entries(groupedTemplates).map(([category, templates]) => (
-              <div key={category} className="space-y-3">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  {category}
-                </h3>
-                <div className="grid gap-3">
-                  {templates.map((template) => (
-                    <Card
-                      key={template.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, template)}
-                      className="cursor-grab active:cursor-grabbing transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] relative group"
-                      onClick={() => handleTemplateSelect(template)}
-                    >
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-50 transition-opacity">
-                        <GripVertical className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start gap-3">
-                          <div className="text-2xl w-8 h-8 flex items-center justify-center bg-muted rounded">
-                            {getWidgetIcon(template.config.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <CardTitle className="text-sm font-medium truncate">
-                                {template.name}
-                              </CardTitle>
-                              <Badge 
-                                variant="secondary" 
-                                className={`text-xs ${categoryColors[template.category]} shrink-0`}
-                              >
-                                {template.category}
-                              </Badge>
+    <>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          {children}
+        </SheetTrigger>
+        <SheetContent className="w-[400px] sm:w-[540px]">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Widget Templates
+            </SheetTitle>
+            <SheetDescription>
+              Click to add ready-made stock and crypto widgets.
+            </SheetDescription>
+          </SheetHeader>
+          
+          <ScrollArea className="h-[calc(100vh-120px)] mt-4">
+            <div className="space-y-6">
+              {Object.entries(groupedTemplates).map(([category, templates]) => (
+                <div key={category} className="space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    {category}
+                  </h3>
+                  <div className="grid gap-3">
+                    {templates.map((template) => (
+                      <Card
+                        key={template.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, template)}
+                        className="cursor-grab active:cursor-grabbing transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] relative group"
+                        onClick={() => handleTemplateSelect(template)}
+                      >
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-50 transition-opacity">
+                          <GripVertical className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <CardHeader className="pb-2">
+                          <div className="flex items-start gap-3">
+                            <div className="text-2xl w-8 h-8 flex items-center justify-center bg-muted rounded">
+                              {getWidgetIcon(template.config.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <CardTitle className="text-sm font-medium truncate">
+                                  {template.name}
+                                </CardTitle>
+                                <Badge 
+                                  variant="secondary" 
+                                  className={`text-xs ${categoryColors[template.category]} shrink-0`}
+                                >
+                                  {template.category}
+                                </Badge>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <CardDescription className="text-xs line-clamp-2">
-                          {template.description}
-                        </CardDescription>
-                        <div className="mt-2 pt-2 border-t">
-                          <Button 
-                            size="sm" 
-                            className="w-full h-7 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleTemplateSelect(template);
-                            }}
-                          >
-                            <Layout className="w-3 h-3 mr-1" />
-                            Add Widget
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <CardDescription className="text-xs line-clamp-2">
+                            {template.description}
+                          </CardDescription>
+                          <div className="mt-2 pt-2 border-t">
+                            <Button 
+                              size="sm" 
+                              className="w-full h-7 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTemplateSelect(template);
+                              }}
+                            >
+                              <Layout className="w-3 h-3 mr-1" />
+                              Add Widget
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-      </SheetContent>
-    </Sheet>
+              ))}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      <IndianApiKeyDialog
+        open={apiKeyDialogOpen}
+        onOpenChange={setApiKeyDialogOpen}
+        onApiKeySubmit={handleApiKeySubmit}
+        templateName={selectedTemplate?.name || ""}
+      />
+    </>
   );
 }

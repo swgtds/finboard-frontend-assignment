@@ -39,3 +39,7 @@ export function getCacheDuration(url: string): number {
 export function getRateLimitedDomains(): string[] {
   return API_RATE_LIMITS.map(config => config.domain);
 }
+
+export function requiresIndianApiKey(url: string): boolean {
+  return url.includes('indianapi.in');
+}

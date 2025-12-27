@@ -325,27 +325,44 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
         const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
         let errorMessage = errorData.error || `Request failed with status ${res.status}`;
         
-        // Enhanced error handling for common API authentication issues
-        if (res.status === 401) {
-          if (!apiKey) {
-            errorMessage = "API key required. This API requires authentication. Please enter your API key in the field above.";
-          } else {
-            errorMessage = "Invalid API key. Please check your API key and try again.";
+        // Enhanced error handling specifically for Indian API
+        if (apiUrl.includes('indianapi.in')) {
+          if (res.status === 401 || res.status === 403 || 
+              (res.status === 400 && errorMessage.toLowerCase().includes('api key')) ||
+              (res.status === 429 && (errorMessage.toLowerCase().includes('unauthorized') || 
+                                     errorMessage.toLowerCase().includes('invalid') || 
+                                     errorMessage.toLowerCase().includes('api key')))) {
+            if (!apiKey) {
+              errorMessage = "Indian Stock Market API requires an API key. Please enter your API key from https://indianapi.in/indian-stock-market";
+            } else {
+              errorMessage = "Invalid API key for Indian Stock Market API. Please check your API key from https://indianapi.in/indian-stock-market";
+            }
+          } else if (res.status === 429) {
+            errorMessage = "Indian API rate limit exceeded (500 requests per month limit). Please wait before making another request.";
           }
-        } else if (res.status === 403) {
-          if (!apiKey) {
-            errorMessage = "Access forbidden. This API may require an API key for authentication. Please enter your API key if you have one.";
-          } else {
-            errorMessage = "Access forbidden. Your API key may not have permission to access this endpoint, or you may have exceeded your quota.";
+        } else {
+          // Enhanced error handling for other APIs
+          if (res.status === 401) {
+            if (!apiKey) {
+              errorMessage = "API key required. This API requires authentication. Please enter your API key in the field above.";
+            } else {
+              errorMessage = "Invalid API key. Please check your API key and try again.";
+            }
+          } else if (res.status === 403) {
+            if (!apiKey) {
+              errorMessage = "Access forbidden. This API may require an API key for authentication. Please enter your API key if you have one.";
+            } else {
+              errorMessage = "Access forbidden. Your API key may not have permission to access this endpoint, or you may have exceeded your quota.";
+            }
+          } else if (res.status === 400) {
+            if (!apiKey && errorMessage.toLowerCase().includes('unauthorized')) {
+              errorMessage = "Bad request - API key may be required. Please enter your API key if this API requires authentication.";
+            } else if (!apiKey && (errorMessage.toLowerCase().includes('api key') || errorMessage.toLowerCase().includes('authentication'))) {
+              errorMessage = "API key required. This API requires authentication. Please enter your API key in the field above.";
+            }
+          } else if (res.status === 429) {
+            errorMessage = "Rate limit exceeded. Please wait before making another request.";
           }
-        } else if (res.status === 400) {
-          if (!apiKey && errorMessage.toLowerCase().includes('unauthorized')) {
-            errorMessage = "Bad request - API key may be required. Please enter your API key if this API requires authentication.";
-          } else if (!apiKey && (errorMessage.toLowerCase().includes('api key') || errorMessage.toLowerCase().includes('authentication'))) {
-            errorMessage = "API key required. This API requires authentication. Please enter your API key in the field above.";
-          }
-        } else if (res.status === 429) {
-          errorMessage = "Rate limit exceeded. Please wait before making another request.";
         }
         
         throw new Error(errorMessage);

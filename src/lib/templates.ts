@@ -35,8 +35,7 @@ export const widgetTemplates: WidgetTemplate[] = [
     config: {
       title: 'Bitcoin Price Chart (INR)',
       apiUrl: 'https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=inr&days=1',
-      refreshInterval: 600, // 10 minutes (increased from 5 minutes to respect rate limits)
-      type: 'chart',
+      refreshInterval: 600, // 10 minutes 
       dataPath: 'prices',
       categoryKey: '[0]',
       valueKey: '[1]'
@@ -64,20 +63,19 @@ export const widgetTemplates: WidgetTemplate[] = [
   {
     id: 'stocks-52week-high',
     name: 'Stocks 52-Week High',
-    description: 'Stocks trading near their 52-week highs',
+    description: 'Top 6 Indian stocks trading near their 52-week highs',
     category: 'stocks',
     config: {
       title: '52-Week High Stocks',
-      apiUrl: 'API_URL_TO_BE_ADDED',
-      refreshInterval: 300,
+      apiUrl: 'https://stock.indianapi.in/fetch_52_week_high_low_data',
+      refreshInterval: 1800, 
       type: 'table',
-      dataPath: '',
+      dataPath: 'BSE_52WeekHighLow.high52Week',
       columns: [
-        { header: 'Symbol', dataPath: 'symbol' },
-        { header: 'Company', dataPath: 'name' },
+        { header: 'Ticker', dataPath: 'ticker' },
+        { header: 'Company', dataPath: 'company' },
         { header: 'Current Price', dataPath: 'price' },
-        { header: '52W High', dataPath: 'week52High' },
-        { header: '% from High', dataPath: 'percentFromHigh' }
+        { header: '52W High', dataPath: '52_week_high' }
       ]
     } as Omit<TableWidgetConfig, 'id'>
   }
