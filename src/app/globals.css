@@ -86,3 +86,73 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Chart component animations and transitions */
+.chart-container {
+  transition: all 300ms ease-out;
+}
+
+.chart-container canvas {
+  transition: opacity 300ms ease-out, transform 200ms ease-out;
+}
+
+/* Theme transition for chart elements */
+:root {
+  --chart-transition-duration: 300ms;
+  --chart-transition-easing: ease-out;
+}
+
+/* Smooth theme transitions for all CSS custom properties */
+:root,
+.dark {
+  transition: 
+    color var(--chart-transition-duration) var(--chart-transition-easing),
+    background-color var(--chart-transition-duration) var(--chart-transition-easing),
+    border-color var(--chart-transition-duration) var(--chart-transition-easing);
+}
+
+/* Enhanced loading animations */
+@keyframes chart-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-chart-pulse {
+  animation: chart-pulse 1.5s ease-in-out infinite;
+}
+
+/* Chart skeleton loading animation */
+@keyframes chart-skeleton {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.chart-skeleton {
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent);
+  background-size: 200px 100%;
+  animation: chart-skeleton 1.5s infinite;
+}
+
+.dark .chart-skeleton {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background-size: 200px 100%;
+}
+
+/* Smooth hover transitions for interactive elements */
+.chart-container * {
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+
+/* Performance optimizations for smooth animations */
+.chart-container {
+  will-change: transform;
+  contain: layout style paint;
+}

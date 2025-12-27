@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef, useState, useCallback } from "react";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -11,9 +11,13 @@ import {
   Title,
   Tooltip,
   Legend,
+  Filler,
+  TooltipItem,
+  Chart,
 } from "chart.js";
 import type { ChartWidgetConfig, WidgetConfig } from "@/lib/types";
 import { useTheme } from "next-themes";
+import { cn } from "@/lib/utils";
 
 ChartJS.register(
   CategoryScale,
@@ -22,103 +26,255 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 type ChartWidgetProps = {
   data: any[];
   config: WidgetConfig & ChartWidgetConfig;
+  variant?: "line" | "area";
+  showPoints?: boolean;
+  tension?: number;
+  animate?: boolean;
 };
 
 type FormattedDataPoint = {
   category: string;
   value: number;
+  timestamp?: number;
 };
 
-export function ChartWidget({ data: rawData, config }: ChartWidgetProps) {
-  const { theme } = useTheme();
+type ChartColors = {
+  grid: string;
+  ticks: string;
+  tooltipBg: string;
+  tooltipBorder: string;
+  line: string;
+  lineSecondary: string;
+  fill: string;
+  pointHover: string;
+};
+
+const CHART_COLORS = {
+  light: {
+    primary: "rgb(75, 192, 192)",
+    secondary: "rgb(255, 99, 132)", 
+    success: "rgb(54, 162, 235)",
+    grid: "rgba(0, 0, 0, 0.1)",
+    ticks: "hsl(221 39% 16%)",
+    tooltipBg: "hsl(210 17% 100%)",
+    tooltipBorder: "hsl(210 10% 85%)",
+  },
+  dark: {
+    primary: "rgb(41, 187, 114)",
+    secondary: "rgb(239, 68, 68)",
+    success: "rgb(59, 130, 246)",
+    grid: "rgba(255, 255, 255, 0.1)",
+    ticks: "hsl(210 17% 95%)",
+    tooltipBg: "hsl(221 28% 18%)",
+    tooltipBorder: "hsl(221 20% 24%)",
+  },
+} as const;
+
+const ANIMATION_CONFIG = {
+  loading: {
+    duration: 750,
+    easing: "easeInOutQuart" as const,
+  },
+  update: {
+    duration: 400,
+    easing: "easeOutCubic" as const,
+  },
+  hover: {
+    duration: 200,
+    easing: "easeOutQuad" as const,
+  },
+} as const;
+
+function useDebounce<T extends (...args: any[]) => any>(
+  callback: T,
+  delay: number
+): T {
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  return useCallback((...args: Parameters<T>) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => callback(...args), delay);
+  }, [callback, delay]) as T;
+}
+
+export function ChartWidget({ 
+  data: rawData, 
+  config, 
+  variant = "line",
+  showPoints,
+  tension = 0.3,
+  animate = true 
+}: ChartWidgetProps) {
+  const { theme, resolvedTheme } = useTheme();
+  const chartRef = useRef<Chart<"line"> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [chartDimensions, setChartDimensions] = useState({ width: 0, height: 0 });
+
+  const currentTheme = resolvedTheme || theme || 'light';
+
+  const handleResize = useDebounce(() => {
+    if (containerRef.current) {
+      const { offsetWidth, offsetHeight } = containerRef.current;
+      setChartDimensions({ width: offsetWidth, height: offsetHeight });
+      
+      if (chartRef.current) {
+        chartRef.current.resize();
+      }
+    }
+  }, 150);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(container);
+
+    handleResize();
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [handleResize]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), ANIMATION_CONFIG.loading.duration);
+    return () => clearTimeout(timer);
+  }, []);
 
   const formattedData: FormattedDataPoint[] = useMemo(() => {
     if (!Array.isArray(rawData)) return [];
     
-    if (rawData.length > 0 && Array.isArray(rawData[0])) {
-      const processedData = rawData.map((item, index) => {
-        if (Array.isArray(item) && item.length >= 2) {
-          let category: string;
-          let value: number;
-          
-          if (config.categoryKey && config.valueKey) {
-            const categoryIndex = parseInt(config.categoryKey.replace(/[\[\]]/g, ''));
-            const valueIndex = parseInt(config.valueKey.replace(/[\[\]]/g, ''));
+    const processData = () => {
+      if (rawData.length > 0 && Array.isArray(rawData[0])) {
+        return rawData.map((item, index) => {
+          if (Array.isArray(item) && item.length >= 2) {
+            let category: string;
+            let value: number;
+            let timestamp: number | undefined;
             
-            const categoryValue = item[categoryIndex];
-            const valueValue = item[valueIndex];
-            
-            if (typeof categoryValue === 'number' && categoryValue > 1000000000) {
-              // Format timestamp to show time as well
-              const date = new Date(categoryValue);
-              category = date.toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: false 
-              });
+            if (config.categoryKey && config.valueKey) {
+              const categoryIndex = parseInt(config.categoryKey.replace(/[\[\]]/g, ''));
+              const valueIndex = parseInt(config.valueKey.replace(/[\[\]]/g, ''));
+              
+              const categoryValue = item[categoryIndex];
+              const valueValue = item[valueIndex];
+              
+              if (typeof categoryValue === 'number' && categoryValue > 1000000000) {
+                timestamp = categoryValue;
+                const date = new Date(categoryValue);
+                category = date.toLocaleTimeString('en-US', { 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  hour12: false 
+                });
+              } else {
+                category = String(categoryValue);
+              }
+              
+              value = Number(valueValue) || 0;
             } else {
-              category = String(categoryValue);
+              const timestampValue = item[0];
+              value = Number(item[1]) || 0;
+              
+              if (typeof timestampValue === 'number' && timestampValue > 1000000000) {
+                timestamp = timestampValue;
+                const date = new Date(timestampValue);
+                category = date.toLocaleTimeString('en-US', { 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  hour12: false 
+                });
+              } else {
+                category = String(timestampValue);
+              }
             }
             
-            value = Number(valueValue) || 0;
-          } else {
-            const timestamp = item[0];
-            value = Number(item[1]) || 0;
-            
-            if (typeof timestamp === 'number' && timestamp > 1000000000) {
-              // Format timestamp to show time as well
-              const date = new Date(timestamp);
-              category = date.toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: false 
-              });
-            } else {
-              category = String(timestamp);
-            }
+            return { category, value, timestamp };
           }
-          
-          return { category, value };
-        }
-        return { category: `Point ${index + 1}`, value: 0 };
-      });
-
-      // Sample data points for better visualization - take every nth item for large datasets
-      if (processedData.length > 50) {
-        const step = Math.ceil(processedData.length / 50);
-        return processedData.filter((_, index) => index % step === 0);
+          return { category: `Point ${index + 1}`, value: 0 };
+        });
       }
       
-      return processedData;
+      return rawData.map((item) => ({
+        category: item[config.categoryKey]?.toString() || "N/A",
+        value: Number(item[config.valueKey]) || 0,
+      })).slice(0, 50); 
+    };
+
+    const processed = processData();
+
+    if (processed.length > 180) {
+      const step = Math.ceil(processed.length / 120);
+      return processed.filter((_, index) => index % step === 0);
     }
     
-    return rawData.map((item) => ({
-      category: item[config.categoryKey]?.toString() || "N/A",
-      value: Number(item[config.valueKey]) || 0,
-    })).slice(0, 15);
+    return processed;
   }, [rawData, config.categoryKey, config.valueKey]);
 
-  const chartColors = useMemo(() => {
-    const isDark = theme === 'dark';
+  const chartColors: ChartColors = useMemo(() => {
+    const colors = CHART_COLORS[currentTheme as keyof typeof CHART_COLORS] || CHART_COLORS.light;
+    
     return {
-      grid: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-      ticks: isDark ? 'hsl(210 17% 95%)' : 'hsl(221 39% 16%)',
-      tooltipBg: isDark ? 'hsl(221 28% 18%)' : 'hsl(210 17% 100%)',
-      tooltipBorder: isDark ? 'hsl(221 20% 24%)' : 'hsl(210 10% 85%)',
-      line: isDark ? 'hsl(191 55% 51%)' : 'hsl(221 39% 26%)'
+      grid: colors.grid,
+      ticks: colors.ticks,
+      tooltipBg: colors.tooltipBg,
+      tooltipBorder: colors.tooltipBorder,
+      line: colors.primary,
+      lineSecondary: colors.secondary,
+      fill: colors.primary.replace('rgb(', 'rgba(').replace(')', ', 0.1)'),
+      pointHover: colors.primary.replace('rgb(', 'rgba(').replace(')', ', 0.8)'),
     };
-  }, [theme]);
+  }, [currentTheme]);
+
+  const shouldShowPoints = useMemo(() => {
+    if (showPoints !== undefined) return showPoints;
+    return formattedData.length <= 180;
+  }, [showPoints, formattedData.length]);
+
+  const pointRadius = useMemo(() => {
+    if (!shouldShowPoints) return 0;
+    const baseRadius = chartDimensions.width < 768 ? 2 : 3;
+    return Math.max(1, Math.min(4, baseRadius));
+  }, [shouldShowPoints, chartDimensions.width]);
 
   const chartOptions = useMemo(() => {
-    return {
+    const isMobile = chartDimensions.width < 768;
+    
+    const options: any = {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: 'index' as const,
+      },
+      animation: animate ? {
+        duration: ANIMATION_CONFIG.loading.duration,
+        easing: ANIMATION_CONFIG.loading.easing,
+        onComplete: () => setIsLoading(false),
+      } : false,
+      transitions: {
+        active: {
+          animation: {
+            duration: ANIMATION_CONFIG.hover.duration,
+          }
+        },
+        resize: {
+          animation: {
+            duration: ANIMATION_CONFIG.update.duration,
+          }
+        }
+      },
       plugins: {
         legend: {
           display: false,
@@ -129,13 +285,18 @@ export function ChartWidget({ data: rawData, config }: ChartWidgetProps) {
           bodyColor: chartColors.ticks,
           borderColor: chartColors.tooltipBorder,
           borderWidth: 1,
+          cornerRadius: 8,
+          displayColors: false,
+          animation: {
+            duration: ANIMATION_CONFIG.hover.duration,
+          },
           callbacks: {
-            title: (context: any) => {
-              // Try to get the original timestamp for detailed tooltip
+            title: (context: TooltipItem<'line'>[]) => {
               const dataIndex = context[0]?.dataIndex;
-              if (dataIndex !== undefined && Array.isArray(rawData[dataIndex]) && rawData[dataIndex][0] > 1000000000) {
-                const timestamp = rawData[dataIndex][0];
-                const date = new Date(timestamp);
+              const dataPoint = formattedData[dataIndex];
+              
+              if (dataPoint?.timestamp) {
+                const date = new Date(dataPoint.timestamp);
                 return date.toLocaleString('en-US', {
                   year: 'numeric',
                   month: 'short',
@@ -148,9 +309,14 @@ export function ChartWidget({ data: rawData, config }: ChartWidgetProps) {
               }
               return context[0]?.label || '';
             },
-            label: (context: any) => {
+            label: (context: TooltipItem<'line'>) => {
               const value = context.parsed.y;
-              return `${config.title || 'Value'}: ${value.toLocaleString()}`;
+              if (value === null || value === undefined) return 'No data';
+              const formattedValue = new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }).format(value);
+              return `${config.title || 'Value'}: ${formattedValue}`;
             }
           }
         },
@@ -159,58 +325,143 @@ export function ChartWidget({ data: rawData, config }: ChartWidgetProps) {
         x: {
           ticks: {
             color: chartColors.ticks,
-            font: { size: 10 },
-            maxRotation: 45,
-            maxTicksLimit: 10, // Limit number of ticks for better readability
+            font: { 
+              size: isMobile ? 9 : 11,
+              family: 'Inter, sans-serif',
+            },
+            maxRotation: isMobile ? 45 : 30,
+            maxTicksLimit: isMobile ? 6 : 12,
           },
           grid: {
             color: chartColors.grid,
+            lineWidth: 0.5,
+          },
+          border: {
+            display: false,
           },
         },
         y: {
           ticks: {
             color: chartColors.ticks,
-            font: { size: 10 },
+            font: { 
+              size: isMobile ? 9 : 11,
+              family: 'Inter, sans-serif',
+            },
             callback: function(value: any) {
-              // Format large numbers with appropriate suffixes
-              if (value >= 1000000) {
-                return (value / 1000000).toFixed(1) + 'M';
-              } else if (value >= 1000) {
-                return (value / 1000).toFixed(1) + 'K';
+              const num = Number(value);
+              if (num >= 1000000000) {
+                return (num / 1000000000).toFixed(1) + 'B';
+              } else if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+              } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
               }
-              return value.toLocaleString();
+              return num.toLocaleString();
             }
           },
           grid: {
             color: chartColors.grid,
+            lineWidth: 0.5,
+          },
+          border: {
+            display: false,
           },
         },
       },
+      elements: {
+        line: {
+          borderWidth: isMobile ? 1.5 : 2,
+          tension: tension,
+        },
+        point: {
+          radius: pointRadius,
+          hoverRadius: pointRadius + 2,
+          borderWidth: 1,
+          hoverBorderWidth: 2,
+        },
+      },
     };
-  }, [chartColors, rawData, config.title]);
 
+    return options;
+  }, [
+    chartColors, 
+    formattedData, 
+    config.title, 
+    animate, 
+    tension, 
+    pointRadius, 
+    chartDimensions.width
+  ]);
+
+  // Chart data with gradient fills and animations
   const chartData = useMemo(() => {
     return {
       labels: formattedData.map((d) => d.category),
       datasets: [
         {
-          label: config.valueKey,
+          label: config.title || config.valueKey,
           data: formattedData.map((d) => d.value),
           borderColor: chartColors.line,
-          backgroundColor: chartColors.line.replace(')', ', 0.2)').replace('hsl', 'hsla'),
-          tension: 0.2,
+          backgroundColor: variant === "area" ? chartColors.fill : 'transparent',
+          fill: variant === "area",
+          tension: tension,
           pointBackgroundColor: chartColors.line,
           pointBorderColor: chartColors.line,
+          pointHoverBackgroundColor: chartColors.pointHover,
+          pointHoverBorderColor: chartColors.line,
+          borderCapStyle: 'round' as const,
+          borderJoinStyle: 'round' as const,
         },
       ],
     };
-  }, [formattedData, config.valueKey, chartColors]);
+  }, [formattedData, config.valueKey, config.title, chartColors, variant, tension]);
 
+  if (!formattedData.length) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <div className="w-8 h-8 mx-auto rounded-full bg-muted animate-pulse" />
+          <p className="text-sm text-muted-foreground">No data available</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full w-full flex flex-col">
-      <div className="w-full h-full">
-        <Line options={chartOptions} data={chartData} />
+      {isLoading && (
+        <div className="absolute inset-0 z-10 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="space-y-3 w-full max-w-sm mx-auto px-4">
+            <div className="h-4 bg-muted rounded animate-pulse" />
+            <div className="h-4 bg-muted rounded w-3/4 animate-pulse" />
+            <div className="h-4 bg-muted rounded w-1/2 animate-pulse" />
+          </div>
+        </div>
+      )}
+
+      <div 
+        ref={containerRef}
+        className={cn(
+          "w-full h-full relative transition-all duration-300 ease-out",
+          "chart-container"
+        )}
+        style={{
+          '--chart-transition': '300ms',
+        } as React.CSSProperties}
+      >
+        <Line 
+          ref={chartRef}
+          options={chartOptions} 
+          data={chartData}
+          aria-label={`${config.title || 'Financial'} chart showing ${formattedData.length} data points`}
+          role="img"
+        />
+      </div>
+
+      <div className="sr-only">
+        Chart displaying {formattedData.length} data points. 
+        Latest value: {formattedData[formattedData.length - 1]?.value.toLocaleString()}.
+        Use arrow keys to navigate chart data when focused.
       </div>
     </div>
   );
