@@ -59,6 +59,7 @@ export function SortableWidget({ widget }: SortableWidgetProps) {
   };
 
   const sizeClass = getWidgetSizeClass(widget);
+  const isChart = widget.type === 'chart';
 
   const widgetContent = (
     <div
@@ -66,7 +67,15 @@ export function SortableWidget({ widget }: SortableWidgetProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className={cn('cursor-move', sizeClass)}
+      className={cn(
+        'cursor-move transition-all duration-200 ease-out',
+        // For chart widgets: only apply shadow and translate, no scaling effects at all
+        isChart && 'hover:shadow-lg hover:-translate-y-1',
+        // For non-chart widgets: apply all hover effects including scaling
+        !isChart && 'hover:scale-[1.02] hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]',
+        isDragging && 'rotate-2 shadow-2xl z-50',
+        sizeClass
+      )}
     >
       <Widget widget={widget} />
     </div>

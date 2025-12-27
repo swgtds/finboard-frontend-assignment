@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Pencil, Trash2, RefreshCw } from "lucide-react";
+import { AlertCircle, Pencil, Trash2, RefreshCw, GripVertical } from "lucide-react";
 import { CardWidget } from "./widgets/CardWidget";
 import { TableWidget } from "./widgets/TableWidget";
 import { ChartWidget } from "./widgets/ChartWidget";
@@ -198,41 +198,49 @@ export function Widget({ widget }: WidgetProps) {
   const getCardStyling = () => {
     switch (widget.type) {
       case 'card':
-        return 'bg-gradient-to-br from-card to-card/95 border-2 hover:border-primary/20 transition-all duration-300 hover:shadow-lg';
+        return 'bg-gradient-to-br from-card to-card/95 border-2 hover:border-primary/30 transition-all duration-300 hover:bg-gradient-to-br hover:from-card/90 hover:to-card/80';
       case 'table':
-        return 'bg-card border hover:border-primary/20 transition-all duration-300';
+        return 'bg-card border hover:border-primary/30 transition-all duration-300 hover:bg-card/95';
       case 'chart':
-        return 'bg-card border hover:border-primary/20 transition-all duration-300';
+        return 'bg-card border hover:border-primary/30 transition-all duration-300 hover:bg-card/95';
       default:
-        return 'bg-card border hover:border-primary/20 transition-all duration-300';
+        return 'bg-card border hover:border-primary/30 transition-all duration-300 hover:bg-card/95';
     }
   };
 
   return (
-    <Card className={cn("flex flex-col group", getWidgetHeightClass(), getCardStyling())}>
+    <Card 
+      className={cn("flex flex-col group relative", getWidgetHeightClass(), getCardStyling())}
+      data-widget-type={widget.type}
+    >
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3 px-4 pt-4">
-        <div className="flex-1 mr-2 space-y-1">
-          <div onDoubleClick={() => setIsEditingTitle(true)}>
-            {isEditingTitle ? (
-              <Input
-                value={title}
-                onChange={handleTitleChange}
-                onBlur={handleTitleSave}
-                onKeyDown={(e) => e.key === 'Enter' && handleTitleSave()}
-                autoFocus
-                className="h-8"
-              />
-            ) : (
-              <CardTitle className="text-base lg:text-lg font-semibold cursor-pointer leading-tight text-foreground">
-                {widget.title}
-              </CardTitle>
+        <div className="flex items-start space-x-2 flex-1 mr-2">
+          <div className="flex items-center justify-center w-5 h-5 mt-1 opacity-40 group-hover:opacity-70 transition-opacity duration-200">
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="flex-1 space-y-1">
+            <div onDoubleClick={() => setIsEditingTitle(true)}>
+              {isEditingTitle ? (
+                <Input
+                  value={title}
+                  onChange={handleTitleChange}
+                  onBlur={handleTitleSave}
+                  onKeyDown={(e) => e.key === 'Enter' && handleTitleSave()}
+                  autoFocus
+                  className="h-8"
+                />
+              ) : (
+                <CardTitle className="text-base lg:text-lg font-semibold cursor-pointer leading-tight text-foreground">
+                  {widget.title}
+                </CardTitle>
+              )}
+            </div>
+            {widget.refreshInterval > 0 && (
+              <CardDescription className={cn("text-xs transition-opacity duration-300", showRefreshMessage ? 'opacity-100' : 'opacity-0')}>
+                Auto-refreshes every {widget.refreshInterval} seconds
+              </CardDescription>
             )}
           </div>
-          {widget.refreshInterval > 0 && (
-            <CardDescription className={cn("text-xs transition-opacity duration-300", showRefreshMessage ? 'opacity-100' : 'opacity-0')}>
-              Auto-refreshes every {widget.refreshInterval} seconds
-            </CardDescription>
-          )}
         </div>
         
         <div className="flex items-center space-x-1">

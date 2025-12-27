@@ -90,10 +90,21 @@ body {
 /* Chart component animations and transitions */
 .chart-container {
   transition: all 300ms ease-out;
+  transform: none !important; /* Prevent parent hover transforms from affecting charts */
+  scale: 1 !important; /* Prevent scaling inheritance */
 }
 
 .chart-container canvas {
   transition: opacity 300ms ease-out, transform 200ms ease-out;
+  transform: none !important; /* Ensure chart canvas doesn't inherit transforms */
+  scale: 1 !important; /* Lock canvas scale */
+}
+
+/* Prevent chart widgets from scaling on hover */
+[data-widget-type="chart"] .chart-container,
+[data-widget-type="chart"] .chart-container * {
+  transform: none !important;
+  scale: 1 !important;
 }
 
 /* Theme transition for chart elements */
@@ -155,4 +166,21 @@ body {
 .chart-container {
   will-change: transform;
   contain: layout style paint;
+}
+
+/* Drag handle hover effect */
+.drag-handle {
+  transition: all 150ms ease-out;
+}
+
+.group:hover .drag-handle {
+  opacity: 0.8;
+  color: hsl(var(--primary));
+}
+
+/* Dragging state effects */
+.widget-dragging {
+  transform: rotate(2deg) scale(1.02);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
 }
