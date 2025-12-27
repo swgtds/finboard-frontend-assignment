@@ -30,12 +30,12 @@ export const widgetTemplates: WidgetTemplate[] = [
   {
     id: 'bitcoin-chart-inr',
     name: 'Bitcoin Price Chart (INR)',
-    description: 'Bitcoin price chart in INR with time series data (24h)',
+    description: 'Bitcoin price chart in INR with time series data (24h) - Updates every 10 minutes',
     category: 'crypto',
     config: {
       title: 'Bitcoin Price Chart (INR)',
       apiUrl: 'https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=inr&days=1',
-      refreshInterval: 300,
+      refreshInterval: 600, // 10 minutes (increased from 5 minutes to respect rate limits)
       type: 'chart',
       dataPath: 'prices',
       categoryKey: '[0]',

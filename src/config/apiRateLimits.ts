@@ -10,11 +10,10 @@ export const API_RATE_LIMITS: ApiRateLimitConfig[] = [
   {
     domain: 'coingecko.com',
     maxRequests: 3,
-    windowMs: 60000,
-    cacheMs: 300000,
+    windowMs: 60000, // 1 minute
+    cacheMs: 600000, // 10 minutes (increased from 5 minutes)
     description: 'CoinGecko free tier: 3 requests per minute'
   },
-
 ];
 
 export function getRateLimitConfig(url: string): ApiRateLimitConfig | null {
