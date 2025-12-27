@@ -15,13 +15,6 @@ export const API_RATE_LIMITS: ApiRateLimitConfig[] = [
     description: 'CoinGecko free tier: 3 requests per minute'
   },
 
-
-
-
-
-
-
-
 ];
 
 export function getRateLimitConfig(url: string): ApiRateLimitConfig | null {

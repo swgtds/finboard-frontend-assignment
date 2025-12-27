@@ -3,8 +3,10 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Widget } from './Widget';
+import { AnimatedWidget } from './AnimatedWidget';
 import type { WidgetConfig } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { useEffect, useState } from 'react';
 
 interface SortableWidgetProps {
   widget: WidgetConfig;
@@ -24,6 +26,21 @@ const getWidgetSizeClass = (widget: WidgetConfig) => {
 };
 
 export function SortableWidget({ widget }: SortableWidgetProps) {
+  const [isNewWidget, setIsNewWidget] = useState(false);
+  
+  useEffect(() => {
+    // Check if widget was created in the last 500ms to trigger animation
+    const widgetId = widget.id;
+    const timestamp = parseInt(widgetId.split('_').pop() || '0');
+    const isRecent = Date.now() - timestamp < 500;
+    
+    if (isRecent) {
+      setIsNewWidget(true);
+      const timer = setTimeout(() => setIsNewWidget(false), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [widget.id]);
+
   const {
     attributes,
     listeners,
@@ -43,7 +60,7 @@ export function SortableWidget({ widget }: SortableWidgetProps) {
 
   const sizeClass = getWidgetSizeClass(widget);
 
-  return (
+  const widgetContent = (
     <div
       ref={setNodeRef}
       style={style}
@@ -53,5 +70,13 @@ export function SortableWidget({ widget }: SortableWidgetProps) {
     >
       <Widget widget={widget} />
     </div>
+  );
+
+  return isNewWidget ? (
+    <AnimatedWidget delay={0}>
+      {widgetContent}
+    </AnimatedWidget>
+  ) : (
+    widgetContent
   );
 }

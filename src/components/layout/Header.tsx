@@ -3,8 +3,9 @@
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./ThemeToggle";
 import { WidgetBuilderModal } from "../WidgetBuilderModal";
+import { TemplatesSidebar } from "../TemplatesSidebar";
 import { Logo } from "../icons";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Sparkles } from "lucide-react";
 
 export function Header() {
   return (
@@ -17,12 +18,18 @@ export function Header() {
           </h1>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-2">
-           <WidgetBuilderModal>
-             <Button>
+          <TemplatesSidebar>
+            <Button variant="outline">
+              <Sparkles className="mr-2 h-4 w-4" />
+              Templates
+            </Button>
+          </TemplatesSidebar>
+          <WidgetBuilderModal>
+            <Button>
               <PlusCircle className="mr-2 h-4 w-4" />
-              Add Widget
-             </Button>
-           </WidgetBuilderModal>
+              Create Custom Widget
+            </Button>
+          </WidgetBuilderModal>
           <ThemeToggle />
         </div>
       </div>
