@@ -36,6 +36,7 @@ export const widgetTemplates: WidgetTemplate[] = [
       title: 'Bitcoin Price Chart (INR)',
       apiUrl: 'https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=inr&days=1',
       refreshInterval: 600, // 10 minutes 
+      type: 'chart',
       dataPath: 'prices',
       categoryKey: '[0]',
       valueKey: '[1]'
