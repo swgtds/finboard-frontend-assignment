@@ -42,7 +42,7 @@ export function ChartWidget({ data: rawData, config }: ChartWidgetProps) {
     if (!Array.isArray(rawData)) return [];
     
     if (rawData.length > 0 && Array.isArray(rawData[0])) {
-      return rawData.map((item, index) => {
+      const processedData = rawData.map((item, index) => {
         if (Array.isArray(item) && item.length >= 2) {
           let category: string;
           let value: number;
@@ -55,7 +55,13 @@ export function ChartWidget({ data: rawData, config }: ChartWidgetProps) {
             const valueValue = item[valueIndex];
             
             if (typeof categoryValue === 'number' && categoryValue > 1000000000) {
-              category = new Date(categoryValue).toLocaleDateString();
+              // Format timestamp to show time as well
+              const date = new Date(categoryValue);
+              category = date.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+              });
             } else {
               category = String(categoryValue);
             }
@@ -66,7 +72,13 @@ export function ChartWidget({ data: rawData, config }: ChartWidgetProps) {
             value = Number(item[1]) || 0;
             
             if (typeof timestamp === 'number' && timestamp > 1000000000) {
-              category = new Date(timestamp).toLocaleDateString();
+              // Format timestamp to show time as well
+              const date = new Date(timestamp);
+              category = date.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+              });
             } else {
               category = String(timestamp);
             }
@@ -75,7 +87,15 @@ export function ChartWidget({ data: rawData, config }: ChartWidgetProps) {
           return { category, value };
         }
         return { category: `Point ${index + 1}`, value: 0 };
-      }).slice(0, 15);
+      });
+
+      // Sample data points for better visualization - take every nth item for large datasets
+      if (processedData.length > 50) {
+        const step = Math.ceil(processedData.length / 50);
+        return processedData.filter((_, index) => index % step === 0);
+      }
+      
+      return processedData;
     }
     
     return rawData.map((item) => ({
@@ -109,6 +129,30 @@ export function ChartWidget({ data: rawData, config }: ChartWidgetProps) {
           bodyColor: chartColors.ticks,
           borderColor: chartColors.tooltipBorder,
           borderWidth: 1,
+          callbacks: {
+            title: (context: any) => {
+              // Try to get the original timestamp for detailed tooltip
+              const dataIndex = context[0]?.dataIndex;
+              if (dataIndex !== undefined && Array.isArray(rawData[dataIndex]) && rawData[dataIndex][0] > 1000000000) {
+                const timestamp = rawData[dataIndex][0];
+                const date = new Date(timestamp);
+                return date.toLocaleString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: false
+                });
+              }
+              return context[0]?.label || '';
+            },
+            label: (context: any) => {
+              const value = context.parsed.y;
+              return `${config.title || 'Value'}: ${value.toLocaleString()}`;
+            }
+          }
         },
       },
       scales: {
@@ -116,6 +160,8 @@ export function ChartWidget({ data: rawData, config }: ChartWidgetProps) {
           ticks: {
             color: chartColors.ticks,
             font: { size: 10 },
+            maxRotation: 45,
+            maxTicksLimit: 10, // Limit number of ticks for better readability
           },
           grid: {
             color: chartColors.grid,
@@ -125,6 +171,15 @@ export function ChartWidget({ data: rawData, config }: ChartWidgetProps) {
           ticks: {
             color: chartColors.ticks,
             font: { size: 10 },
+            callback: function(value: any) {
+              // Format large numbers with appropriate suffixes
+              if (value >= 1000000) {
+                return (value / 1000000).toFixed(1) + 'M';
+              } else if (value >= 1000) {
+                return (value / 1000).toFixed(1) + 'K';
+              }
+              return value.toLocaleString();
+            }
           },
           grid: {
             color: chartColors.grid,
@@ -132,7 +187,7 @@ export function ChartWidget({ data: rawData, config }: ChartWidgetProps) {
         },
       },
     };
-  }, [chartColors]);
+  }, [chartColors, rawData, config.title]);
 
   const chartData = useMemo(() => {
     return {
