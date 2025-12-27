@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDashboardStore } from "@/store/dashboardStore";
 import { widgetTemplates, WidgetTemplate } from "@/lib/templates";
-import { Layout, Sparkles, GripVertical } from "lucide-react";
+import { Layout, Sparkles, GripVertical, BarChart3, CreditCard, Table } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { generateId } from "@/lib/utils";
 import type { WidgetConfig } from "@/lib/types";
@@ -28,6 +28,19 @@ export function TemplatesSidebar({ children }: TemplatesSidebarProps) {
   const [open, setOpen] = useState(false);
   const { addWidget } = useDashboardStore();
   const { toast } = useToast();
+
+  const getWidgetIcon = (type: string) => {
+    switch (type) {
+      case 'chart':
+        return <BarChart3 className="w-4 h-4" />;
+      case 'card':
+        return <CreditCard className="w-4 h-4" />;
+      case 'table':
+        return <Table className="w-4 h-4" />;
+      default:
+        return <Layout className="w-4 h-4" />;
+    }
+  };
 
   const handleTemplateSelect = (template: WidgetTemplate) => {
     const newWidget: WidgetConfig = {
@@ -104,7 +117,7 @@ export function TemplatesSidebar({ children }: TemplatesSidebarProps) {
                       <CardHeader className="pb-2">
                         <div className="flex items-start gap-3">
                           <div className="text-2xl w-8 h-8 flex items-center justify-center bg-muted rounded">
-                            {template.thumbnail}
+                            {getWidgetIcon(template.config.type)}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
