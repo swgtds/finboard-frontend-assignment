@@ -105,14 +105,14 @@ export function Dashboard() {
             <div className="flex flex-col items-center gap-4 text-center">
                 <h3 className="text-2xl font-bold tracking-tight">Your finance dashboard is empty</h3>
                 <p className="text-sm text-muted-foreground">
-                  Get started by choosing from our financial templates or creating a custom widget to monitor your investments.
+                  Connect your financial API or pick a built-in template to get started.
                   {isDragOver && " Drop template here to add it!"}
                 </p>
                 <div className="flex gap-2 flex-wrap justify-center">
                   <TemplatesSidebar>
                     <Button variant="outline" size="lg">
                       <Sparkles className="mr-2 h-4 w-4" />
-                      Browse Financial Templates
+                      Browse Templates
                     </Button>
                   </TemplatesSidebar>
                   <WidgetBuilderModal>
