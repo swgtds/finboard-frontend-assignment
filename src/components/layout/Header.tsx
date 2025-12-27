@@ -5,7 +5,8 @@ import { ThemeToggle } from "./ThemeToggle";
 import { WidgetBuilderModal } from "../WidgetBuilderModal";
 import { TemplatesSidebar } from "../TemplatesSidebar";
 import { Logo } from "../icons";
-import { PlusCircle, Sparkles } from "lucide-react";
+import { PlusCircle, Sparkles, BarChart3 } from "lucide-react";
+import Link from "next/link";
 
 export function Header() {
   return (
