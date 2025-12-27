@@ -117,7 +117,6 @@ export function ChartWidget({
   const { theme, resolvedTheme } = useTheme();
   const chartRef = useRef<Chart<"line"> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [chartDimensions, setChartDimensions] = useState({ width: 0, height: 0 });
 
   const currentTheme = resolvedTheme || theme || 'light';
@@ -146,11 +145,6 @@ export function ChartWidget({
       resizeObserver.disconnect();
     };
   }, [handleResize]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), ANIMATION_CONFIG.loading.duration);
-    return () => clearTimeout(timer);
-  }, []);
 
   const formattedData: FormattedDataPoint[] = useMemo(() => {
     if (!Array.isArray(rawData)) return [];
@@ -261,7 +255,6 @@ export function ChartWidget({
       animation: animate ? {
         duration: ANIMATION_CONFIG.loading.duration,
         easing: ANIMATION_CONFIG.loading.easing,
-        onComplete: () => setIsLoading(false),
       } : false,
       transitions: {
         active: {
@@ -429,16 +422,6 @@ export function ChartWidget({
 
   return (
     <div className="h-full w-full flex flex-col">
-      {isLoading && (
-        <div className="absolute inset-0 z-10 bg-background/80 backdrop-blur-sm flex items-center justify-center">
-          <div className="space-y-3 w-full max-w-sm mx-auto px-4">
-            <div className="h-4 bg-muted rounded animate-pulse" />
-            <div className="h-4 bg-muted rounded w-3/4 animate-pulse" />
-            <div className="h-4 bg-muted rounded w-1/2 animate-pulse" />
-          </div>
-        </div>
-      )}
-
       <div 
         ref={containerRef}
         className={cn(
