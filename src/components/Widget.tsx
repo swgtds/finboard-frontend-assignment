@@ -257,7 +257,9 @@ export function Widget({ widget }: WidgetProps) {
       </CardHeader>
       <CardContent className="flex-1 flex flex-col px-0 pb-4">
         {isInitialLoading ? (
-          <Skeleton className="flex-1 w-full mx-4" />
+          <div className="flex-1 p-3 lg:p-4">
+            <Skeleton className="w-full h-full min-h-[100px]" />
+          </div>
         ) : error ? (
           <div className="flex flex-1 flex-col items-center justify-center text-destructive px-4">
             <AlertCircle className="h-8 w-8 mb-2" />
