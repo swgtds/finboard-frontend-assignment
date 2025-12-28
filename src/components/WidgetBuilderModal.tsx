@@ -510,8 +510,13 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
             <div className="relative">
               <Input 
                 {...field} 
-                placeholder="Enter API key if required (will be sent as X-Api-Key header)" 
-                type={showApiKey ? "text" : "password"} 
+                placeholder="Enter API key if required" 
+                type="text"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
+                className={showApiKey ? "" : "[&]:[-webkit-text-security:disc] [&]:[text-security:disc]"}
               />
               <Button
                 type="button"
