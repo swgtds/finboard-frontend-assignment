@@ -95,30 +95,30 @@ export function Dashboard() {
   if (widgets.length === 0) {
     return (
         <div 
-          className={`flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm transition-colors ${
+          className={`flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm transition-colors p-4 sm:p-6 ${
             isDragOver ? 'border-primary bg-primary/5' : ''
           }`}
           onDragOver={handleTemplateDragOver}
           onDragLeave={handleTemplateDragLeave}
           onDrop={handleTemplateDrop}
         >
-            <div className="flex flex-col items-center gap-4 text-center">
-                <h3 className="text-2xl font-bold tracking-tight">Your finance dashboard is empty</h3>
-                <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col items-center gap-4 text-center max-w-md">
+                <h3 className="text-xl sm:text-2xl font-bold tracking-tight">Your finance dashboard is empty</h3>
+                <p className="text-sm text-muted-foreground px-2">
                   Connect your financial API or pick a built-in template to get started.
                   {isDragOver && " Drop template here to add it!"}
                 </p>
-                <div className="flex gap-2 flex-wrap justify-center">
+                <div className="flex gap-2 flex-col sm:flex-row w-full sm:w-auto">
                   <TemplatesSidebar>
-                    <Button variant="outline" size="lg">
+                    <Button variant="outline" size="default" className="w-full sm:w-auto">
                       <Sparkles className="mr-2 h-4 w-4" />
                       Browse Templates
                     </Button>
                   </TemplatesSidebar>
                   <WidgetBuilderModal>
-                    <Button size="lg">
+                    <Button size="default" className="w-full sm:w-auto">
                       <PlusCircle className="mr-2 h-4 w-4" />
-                      Create Custom Widget
+                      Create Widget
                     </Button>
                   </WidgetBuilderModal>
                 </div>
@@ -141,7 +141,7 @@ export function Dashboard() {
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={widgets.map(w => w.id)} strategy={rectSortingStrategy}>
-          <div className="grid gap-4 auto-rows-min grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          <div className="grid gap-3 sm:gap-4 auto-rows-min grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
             {widgets.map((widget) => (
               <SortableWidget key={widget.id} widget={widget} />
             ))}

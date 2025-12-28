@@ -797,28 +797,29 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[625px]">
+      <DialogContent className="w-[95vw] max-w-[625px] sm:max-w-[625px] max-h-[90vh] sm:max-h-[85vh] p-4 sm:p-6">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col max-h-[80vh]">
-            <DialogHeader>
-              <DialogTitle>{widgetToEdit ? 'Edit Widget' : 'Create New Widget'}</DialogTitle>
-              <DialogDescription>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col max-h-[calc(90vh-2rem)] sm:max-h-[80vh]">
+            <DialogHeader className="space-y-1 sm:space-y-2">
+              <DialogTitle className="text-base sm:text-lg">{widgetToEdit ? 'Edit Widget' : 'Create New Widget'}</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">
                 {step === 1
                   ? "Configure your widget by providing the details below."
                   : "Configure the data to display on your widget."}
               </DialogDescription>
             </DialogHeader>
 
-            <div className="flex-grow overflow-y-auto p-1 pr-4 my-4">
+            <div className="flex-grow overflow-y-auto p-1 pr-2 sm:pr-4 my-3 sm:my-4">
               {step === 1 ? renderStep1() : renderStep2()}
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0">
               {step === 1 ? (
                 <Button
                   type="button"
                   onClick={handleTestApiAndNext}
                   disabled={testApiState.loading}
+                  className="w-full sm:w-auto touch-manipulation"
                 >
                   {testApiState.loading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -827,7 +828,7 @@ export function WidgetBuilderModal({ children, widgetToEdit }: WidgetBuilderModa
                   )}
                 </Button>
               ) : (
-                <Button type="submit">
+                <Button type="submit" className="w-full sm:w-auto touch-manipulation">
                   {widgetToEdit ? "Save Changes" : "Create Widget"}
                 </Button>
               )}

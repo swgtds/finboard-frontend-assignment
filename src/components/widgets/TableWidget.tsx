@@ -51,28 +51,28 @@ export function TableWidget({ data, config }: TableWidgetProps) {
   
   return (
     <div className="flex flex-col h-full select-text">
-      <div className="px-4 pb-4">
+      <div className="px-3 sm:px-4 pb-3 sm:pb-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search table data..."
+            placeholder="Search..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
               setCurrentPage(1);
             }}
-            className="pl-9 bg-muted/50 border-muted-foreground/20 focus:border-primary/50 focus:bg-background transition-colors"
+            className="pl-9 h-9 sm:h-10 text-sm bg-muted/50 border-muted-foreground/20 focus:border-primary/50 focus:bg-background transition-colors"
           />
         </div>
       </div>
       <div className="flex-grow relative">
         <ScrollArea className="absolute inset-0">
-          <div className="px-4">
+          <div className="px-3 sm:px-4">
             <Table>
               <TableHeader>
                 <TableRow>
                   {config.columns.map((col, index) => (
-                    <TableHead key={index} className="font-semibold text-foreground select-text">{col.header}</TableHead>
+                    <TableHead key={index} className="font-semibold text-foreground select-text text-xs sm:text-sm whitespace-nowrap">{col.header}</TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
@@ -80,7 +80,7 @@ export function TableWidget({ data, config }: TableWidgetProps) {
                 {paginatedData.map((row, rowIndex) => (
                   <TableRow key={rowIndex} className="hover:bg-muted/50 transition-colors">
                     {config.columns.map((col, colIndex) => (
-                      <TableCell key={colIndex} className="text-sm select-text">{get(row, col.dataPath)}</TableCell>
+                      <TableCell key={colIndex} className="text-xs sm:text-sm select-text py-2 sm:py-3">{get(row, col.dataPath)}</TableCell>
                     ))}
                   </TableRow>
                 ))}
@@ -91,24 +91,25 @@ export function TableWidget({ data, config }: TableWidgetProps) {
         </ScrollArea>
       </div>
 
-      <div className="flex items-center justify-between px-4 py-3 border-t border-muted-foreground/10">
-        <span className="text-sm text-muted-foreground">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 px-3 sm:px-4 py-2 sm:py-3 border-t border-muted-foreground/10">
+        <span className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
           {filteredData.length === 0 
-            ? "No results found" 
-            : `Showing ${Math.min((currentPage - 1) * ROWS_PER_PAGE + 1, filteredData.length)} to ${Math.min(currentPage * ROWS_PER_PAGE, filteredData.length)} of ${filteredData.length} entries`
+            ? "No results" 
+            : `${Math.min((currentPage - 1) * ROWS_PER_PAGE + 1, filteredData.length)}-${Math.min(currentPage * ROWS_PER_PAGE, filteredData.length)} of ${filteredData.length}`
           }
         </span>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1 sm:space-x-2 order-1 sm:order-2 w-full sm:w-auto justify-between sm:justify-end">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
+            className="h-8 px-2 sm:px-3 text-xs sm:text-sm touch-manipulation"
           >
-            Previous
+            Prev
           </Button>
-          <span className="text-sm text-muted-foreground font-medium">
-            Page {currentPage} of {totalPages}
+          <span className="text-xs sm:text-sm text-muted-foreground font-medium whitespace-nowrap">
+            {currentPage}/{totalPages}
           </span>
           <Button
             variant="outline"
@@ -117,6 +118,7 @@ export function TableWidget({ data, config }: TableWidgetProps) {
               setCurrentPage((prev) => Math.min(prev + 1, totalPages))
             }
             disabled={currentPage === totalPages}
+            className="h-8 px-2 sm:px-3 text-xs sm:text-sm touch-manipulation"
           >
             Next
           </Button>

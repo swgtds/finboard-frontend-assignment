@@ -87,6 +87,70 @@ body {
   }
 }
 
+/* Mobile-first touch optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase touch targets on mobile */
+  button, 
+  [role="button"],
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Remove hover effects on touch devices */
+  .hover\:scale-\[1\.02\]:hover {
+    transform: none !important;
+  }
+  
+  /* Better tap feedback */
+  button:active,
+  [role="button"]:active {
+    opacity: 0.8;
+  }
+}
+
+/* Safe area padding for mobile devices with notches */
+@supports (padding: max(0px)) {
+  .safe-area-inset {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Prevent pull-to-refresh on mobile */
+html {
+  overscroll-behavior-y: contain;
+}
+
+/* Smooth scrolling on mobile */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Improve text readability on mobile */
+@media (max-width: 640px) {
+  body {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
+
+/* Touch manipulation for draggable elements */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Prevent text selection during drag on mobile */
+.dragging {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* Chart component animations and transitions */
 .chart-container {
   transition: all 300ms ease-out;

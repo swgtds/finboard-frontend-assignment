@@ -43,7 +43,6 @@ export function Widget({ widget, dragHandleProps }: WidgetProps) {
   const { removeWidget, updateWidget } = useDashboardStore();
 
   const fetchData = useCallback(async (isManualRefresh = false) => {
-    // Don't retry if we have an authentication error
     if (hasAuthError && !isManualRefresh) {
       console.log(`Skipping automatic retry for widget ${widget.id} due to auth error`);
       return;
@@ -51,13 +50,11 @@ export function Widget({ widget, dragHandleProps }: WidgetProps) {
 
     if (isManualRefresh) {
       setIsRefreshing(true);
-      setHasAuthError(false); // Reset auth error flag on manual refresh
+      setHasAuthError(false); 
     }
     setError(null);
     try {
       let proxyUrl = `/api/proxy?url=${encodeURIComponent(widget.apiUrl)}`;
-      
-      // Add API key if provided
       if (widget.apiKey) {
         proxyUrl += `&apiKey=${encodeURIComponent(widget.apiKey)}`;
       }
@@ -87,7 +84,6 @@ export function Widget({ widget, dragHandleProps }: WidgetProps) {
           errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         }
 
-        // Handle authentication errors specifically for Indian API first
         if (widget.apiUrl.includes('indianapi.in') && 
             (response.status === 401 || response.status === 403 || 
              (response.status === 400 && errorMessage.toLowerCase().includes('api key')) ||
@@ -95,7 +91,7 @@ export function Widget({ widget, dragHandleProps }: WidgetProps) {
                                          errorMessage.toLowerCase().includes('invalid') || 
                                          errorMessage.toLowerCase().includes('api key'))))) {
           const authErrorMessage = "Invalid API key for Indian Stock Market API. Please check your API key and try again.";
-          setHasAuthError(true); // Set flag to prevent retrying
+          setHasAuthError(true); 
           toast({
             title: "Authentication Error",
             description: "Invalid API key for Indian Stock Market API. Please edit this widget to update your API key.",
@@ -228,13 +224,13 @@ export function Widget({ widget, dragHandleProps }: WidgetProps) {
   const getWidgetHeightClass = () => {
     switch (widget.type) {
       case 'card':
-        return 'h-auto min-h-[140px] sm:min-h-[160px] lg:min-h-[180px] max-h-fit';
+        return 'h-auto min-h-[120px] sm:min-h-[140px] lg:min-h-[160px] max-h-fit';
       case 'table':
-        return 'h-auto min-h-[400px]';
+        return 'h-auto min-h-[320px] sm:min-h-[360px] lg:min-h-[400px]';
       case 'chart':
-        return 'h-auto min-h-[300px]';
+        return 'h-auto min-h-[240px] sm:min-h-[280px] lg:min-h-[300px]';
       default:
-        return 'h-auto min-h-[200px]';
+        return 'h-auto min-h-[160px] sm:min-h-[180px] lg:min-h-[200px]';
     }
   };
 
@@ -253,18 +249,18 @@ export function Widget({ widget, dragHandleProps }: WidgetProps) {
 
   return (
     <Card 
-      className={cn("flex flex-col group relative", getWidgetHeightClass(), getCardStyling())}
+      className={cn("flex flex-col group relative touch-manipulation", getWidgetHeightClass(), getCardStyling())}
       data-widget-type={widget.type}
     >
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3 px-4 pt-4">
-        <div className="flex items-start space-x-2 flex-1 mr-2">
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2 sm:pb-3 px-3 sm:px-4 pt-3 sm:pt-4">
+        <div className="flex items-start space-x-1.5 sm:space-x-2 flex-1 mr-2">
           <div 
             {...(dragHandleProps || {})}
-            className="flex items-center justify-center w-5 h-5 mt-1 opacity-40 group-hover:opacity-70 transition-opacity duration-200 cursor-grab active:cursor-grabbing"
+            className="flex items-center justify-center w-6 h-6 sm:w-5 sm:h-5 mt-0.5 opacity-50 sm:opacity-40 group-hover:opacity-70 transition-opacity duration-200 cursor-grab active:cursor-grabbing touch-manipulation"
           >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </div>
-          <div className="flex-1 space-y-1 select-text">
+          <div className="flex-1 space-y-0.5 sm:space-y-1 select-text min-w-0">
             <div onDoubleClick={() => setIsEditingTitle(true)}>
               {isEditingTitle ? (
                 <Input
@@ -276,24 +272,24 @@ export function Widget({ widget, dragHandleProps }: WidgetProps) {
                   className="h-8"
                 />
               ) : (
-                <CardTitle className="text-base lg:text-lg font-semibold cursor-pointer leading-tight text-foreground select-text">
+                <CardTitle className="text-sm sm:text-base lg:text-lg font-semibold cursor-pointer leading-tight text-foreground select-text truncate">
                   {widget.title}
                 </CardTitle>
               )}
             </div>
             {widget.refreshInterval > 0 && (
-              <CardDescription className={cn("text-xs transition-opacity duration-300", showRefreshMessage ? 'opacity-100' : 'opacity-0')}>
-                Auto-refreshes every {widget.refreshInterval} seconds
+              <CardDescription className={cn("text-[10px] sm:text-xs transition-opacity duration-300", showRefreshMessage ? 'opacity-100' : 'opacity-0')}>
+                Auto-refreshes every {widget.refreshInterval}s
               </CardDescription>
             )}
           </div>
         </div>
         
-        <div className="flex items-center space-x-1 relative z-10 widget-header-buttons">
+        <div className="flex items-center space-x-0.5 sm:space-x-1 relative z-10 widget-header-buttons flex-shrink-0">
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-7 w-7 hover:bg-accent hover:text-accent-foreground" 
+            className="h-8 w-8 sm:h-7 sm:w-7 hover:bg-accent hover:text-accent-foreground touch-manipulation" 
             onClick={handleRefreshClick} 
             disabled={isRefreshing}
             onMouseEnter={(e) => e.stopPropagation()}
@@ -304,7 +300,7 @@ export function Widget({ widget, dragHandleProps }: WidgetProps) {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-7 w-7 hover:bg-accent hover:text-accent-foreground"
+              className="h-8 w-8 sm:h-7 sm:w-7 hover:bg-accent hover:text-accent-foreground touch-manipulation"
               onMouseEnter={(e) => e.stopPropagation()}
             >
               <Pencil className="h-4 w-4" />
@@ -313,7 +309,7 @@ export function Widget({ widget, dragHandleProps }: WidgetProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-red-500 hover:text-red-500 hover:bg-red-500/10"
+            className="h-8 w-8 sm:h-7 sm:w-7 text-red-500 hover:text-red-500 hover:bg-red-500/10 touch-manipulation"
             onClick={() => removeWidget(widget.id)}
             onMouseEnter={(e) => e.stopPropagation()}
           >
@@ -322,7 +318,7 @@ export function Widget({ widget, dragHandleProps }: WidgetProps) {
         </div>
 
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col px-0 pb-4 select-text">
+      <CardContent className="flex-1 flex flex-col px-0 pb-3 sm:pb-4 select-text overflow-hidden">
         {isInitialLoading ? (
           <div className="flex-1 p-3 lg:p-4">
             <Skeleton className="w-full h-full min-h-[100px]" />

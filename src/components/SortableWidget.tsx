@@ -17,9 +17,9 @@ const getWidgetSizeClass = (widget: WidgetConfig) => {
     case 'card':
       return 'col-span-1';
     case 'table':
-      return 'col-span-1 sm:col-span-2 md:col-span-2 lg:col-span-3 xl:col-span-4';
+      return 'col-span-1 sm:col-span-2 lg:col-span-2 xl:col-span-3 2xl:col-span-4';
     case 'chart':
-      return 'col-span-1 sm:col-span-2 md:col-span-2 lg:col-span-2 xl:col-span-3';
+      return 'col-span-1 sm:col-span-2 lg:col-span-2 xl:col-span-2 2xl:col-span-3';
     default:
       return 'col-span-1';
   }

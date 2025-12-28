@@ -109,49 +109,49 @@ export function TemplatesSidebar({ children }: TemplatesSidebarProps) {
         <SheetTrigger asChild>
           {children}
         </SheetTrigger>
-        <SheetContent className="w-[400px] sm:w-[540px]">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
+        <SheetContent className="w-full sm:w-[400px] md:w-[540px] p-0">
+          <SheetHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
+            <SheetTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               Widget Templates
             </SheetTitle>
-            <SheetDescription>
-              Click to add ready-made stock and crypto widgets.
+            <SheetDescription className="text-xs sm:text-sm">
+              Tap to add ready-made stock and crypto widgets.
             </SheetDescription>
           </SheetHeader>
           
-          <ScrollArea className="h-[calc(100vh-120px)] mt-4">
-            <div className="space-y-6">
+          <ScrollArea className="h-[calc(100dvh-100px)] sm:h-[calc(100vh-120px)]">
+            <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 pt-2 sm:pt-0">
               {Object.entries(groupedTemplates).map(([category, templates]) => (
-                <div key={category} className="space-y-3">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                <div key={category} className="space-y-2 sm:space-y-3">
+                  <h3 className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                     {category}
                   </h3>
-                  <div className="grid gap-3">
+                  <div className="grid gap-2 sm:gap-3">
                     {templates.map((template) => (
                       <Card
                         key={template.id}
                         draggable
                         onDragStart={(e) => handleDragStart(e, template)}
-                        className="cursor-grab active:cursor-grabbing transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] relative group"
+                        className="cursor-pointer sm:cursor-grab active:cursor-grabbing transition-all duration-200 hover:shadow-md active:scale-[0.98] relative group touch-manipulation"
                         onClick={() => handleTemplateSelect(template)}
                       >
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-50 transition-opacity">
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-50 transition-opacity hidden sm:block">
                           <GripVertical className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <CardHeader className="pb-2">
-                          <div className="flex items-start gap-3">
-                            <div className="text-2xl w-8 h-8 flex items-center justify-center bg-muted rounded">
+                        <CardHeader className="pb-2 p-3 sm:p-4 sm:pb-2">
+                          <div className="flex items-start gap-2 sm:gap-3">
+                            <div className="text-lg sm:text-2xl w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-muted rounded flex-shrink-0">
                               {getWidgetIcon(template.config.type)}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2">
-                                <CardTitle className="text-sm font-medium truncate">
+                                <CardTitle className="text-xs sm:text-sm font-medium truncate">
                                   {template.name}
                                 </CardTitle>
                                 <Badge 
                                   variant="secondary" 
-                                  className={`text-xs ${categoryColors[template.category]} shrink-0`}
+                                  className={`text-[10px] sm:text-xs ${categoryColors[template.category]} shrink-0`}
                                 >
                                   {template.category}
                                 </Badge>
@@ -159,14 +159,14 @@ export function TemplatesSidebar({ children }: TemplatesSidebarProps) {
                             </div>
                           </div>
                         </CardHeader>
-                        <CardContent className="pt-0">
-                          <CardDescription className="text-xs line-clamp-2">
+                        <CardContent className="pt-0 p-3 sm:p-4 sm:pt-0">
+                          <CardDescription className="text-[10px] sm:text-xs line-clamp-2">
                             {template.description}
                           </CardDescription>
                           <div className="mt-2 pt-2 border-t">
                             <Button 
                               size="sm" 
-                              className="w-full h-7 text-xs"
+                              className="w-full h-8 sm:h-7 text-xs touch-manipulation"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleTemplateSelect(template);
